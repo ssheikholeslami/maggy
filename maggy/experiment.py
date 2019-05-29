@@ -75,6 +75,7 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
     :rtype: dict
     """
     global running
+    # exp_driver = None  # TODO to fix UnboundLocalError (calling exp_driver.stop() in finally block)
 
     if running:
         raise RuntimeError("An experiment is currently running.")
@@ -118,6 +119,9 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
         elif experiment_type == 'ablation':
             pass
 
+        else:
+            running = False
+
 
         # Make SparkUI intuitive by grouping jobs
         sc.setJobGroup("Maggy Experiment", "{}".format(name))
@@ -153,12 +157,14 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
         # sparkmagic hb poll intervall is 5 seconds, therefore wait 6 seconds
         time.sleep(6)
         # cleanup spark jobs
-        exp_driver.stop()
-        elastic_id +=1
+        if running:
+            exp_driver.stop()
+        elastic_id += 1
         running = False
         sc.setJobGroup("", "")
 
     return result
+
 
 def _exception_handler():
     """
