@@ -45,17 +45,17 @@ class ExperimentDriver(object):
         self.num_executors = kwargs.get('num_executors')
         self._message_q = queue.Queue()
         self.name = kwargs.get('name')
-        self.num_trials = kwargs.get('num_trials')
         self.experiment_done = False
         self.worker_done = False
         self.hb_interval = kwargs.get('hb_interval')
         self.description = kwargs.get('description')
 
         # TYPE-SPECIFIC EXPERIMENT SETUP
-        # TODO or use a 'type' parameter?
         if experiment_type == 'optimization':
             # set up an optimization experiment
             ExperimentDriver.EXPERIMENT_TYPE = 'optimization'
+
+            self.num_trials = kwargs.get('num_trials')
 
             searchspace = kwargs.get('searchspace')
             if isinstance(searchspace, Searchspace):
@@ -75,7 +75,7 @@ class ExperimentDriver(object):
                 print("Custom Optimizer initialized.")  # TODO do we need this print?
             else:
                 raise Exception(
-                    "The experiment's optimizer should be either an string indicating the name "
+                    "The experiment's optimizer should either be an string indicating the name "
                     "of an implemented optimizer (such as 'randomsearch') or an instance of "
                     "maggy.optimizer.AbstractOptimizer, "
                     "but it is {0} (of type '{1}')."

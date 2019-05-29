@@ -29,8 +29,9 @@ elastic_id = 1
 experiment_json = None
 
 
-def lagom(map_fun, searchspace, optimizer, direction, num_trials, name, hb_interval=1, es_policy='median', es_interval=300, es_min=10, description=''):
-    """Launches a maggy experiment for hyperparameter optimization.
+def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trials, name, hb_interval=1, es_policy='median', es_interval=300, es_min=10, description=''):
+    """Launches a maggy experiment, which depending on `experiment_type` can
+    either be hyperparameter optimization or ablation study.
 
     Given a search space, objective and a model training procedure `map_fun`
     (black-box function), an experiment is the whole process of finding the
@@ -42,6 +43,7 @@ def lagom(map_fun, searchspace, optimizer, direction, num_trials, name, hb_inter
 
     :param map_fun: User defined experiment containing the model training.
     :type map_fun: function
+    :param experiment_type: Type of Maggy experiment. Can either be 'optimization' or 'ablation'
     :param searchspace: A maggy Searchspace object from which samples are drawn.
     :type searchspace: Searchspace
     :param optimizer: The optimizer is the part generating new trials.
@@ -72,8 +74,6 @@ def lagom(map_fun, searchspace, optimizer, direction, num_trials, name, hb_inter
         combination with it's performance metric
     :rtype: dict
     """
-    assert num_trials > 0, "number of trials should be greater than zero"
-
     global running
 
     if running:
@@ -103,16 +103,21 @@ def lagom(map_fun, searchspace, optimizer, direction, num_trials, name, hb_inter
         #hopshdfs.dump('writing proto buf worked', log_dir+'/maggy.log')
 
         num_executors = util.num_executors()
+        if experiment_type == 'optimization':
+            assert num_trials > 0, "number of trials should be greater than zero"
+            if num_executors > num_trials:
+               num_executors = num_trials
 
-        if num_executors > num_trials:
-            num_executors = num_trials
+            nodeRDD = sc.parallelize(range(num_executors), num_executors)
 
-        nodeRDD = sc.parallelize(range(num_executors), num_executors)
+            # start experiment driver
+            exp_driver = ExperimentDriver('optimization', searchspace, optimizer, direction,
+                num_trials, name, num_executors, hb_interval, es_policy,
+                es_interval, es_min, description, app_dir, log_dir, trial_dir)
 
-        # start experiment driver
-        exp_driver = ExperimentDriver(searchspace, optimizer, direction,
-            num_trials, name, num_executors, hb_interval, es_policy,
-            es_interval, es_min, description, app_dir, log_dir, trial_dir)
+        elif experiment_type == 'ablation':
+            pass
+
 
         # Make SparkUI intuitive by grouping jobs
         sc.setJobGroup("Maggy Experiment", "{}".format(name))
