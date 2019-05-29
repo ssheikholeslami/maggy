@@ -121,6 +121,10 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
 
         else:
             running = False
+            raise RuntimeError(
+                "Unknown experiment_type:"
+                "should be either 'optimization' or 'ablation', "
+                "But it is {0}".format(str(experiment_type)))
 
 
         # Make SparkUI intuitive by grouping jobs
