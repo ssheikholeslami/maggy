@@ -75,7 +75,7 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
     :rtype: dict
     """
     global running
-    exp_driver = None  # TODO to fix UnboundLocalError (calling exp_driver.stop() in finally block)
+    # exp_driver = None  # TODO to fix UnboundLocalError (calling exp_driver.stop() in finally block)
 
     if running:
         raise RuntimeError("An experiment is currently running.")
@@ -112,9 +112,11 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
             nodeRDD = sc.parallelize(range(num_executors), num_executors)
 
             # start experiment driver
-            exp_driver = ExperimentDriver('optimization', searchspace, optimizer, direction,
-                num_trials, name, num_executors, hb_interval, es_policy,
-                es_interval, es_min, description, app_dir, log_dir, trial_dir)
+            exp_driver = ExperimentDriver('optimization', searchspace=searchspace, optimizer=optimizer,
+                                          direction=direction, num_trials=num_trials, name=name,
+                                          num_executors=num_executors, hb_interval=hb_interval, es_policy=es_policy,
+                                          es_interval=es_interval, es_min=es_min, description=description,
+                                          app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
 
         elif experiment_type == 'ablation':
             pass
@@ -161,8 +163,8 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
         # sparkmagic hb poll intervall is 5 seconds, therefore wait 6 seconds
         time.sleep(6)
         # cleanup spark jobs
-        if running is True and exp_driver is not None:
-            exp_driver.stop()
+        # if running is True and exp_driver is not None:
+        exp_driver.stop()
         elastic_id += 1
         running = False
         sc.setJobGroup("", "")
