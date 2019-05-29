@@ -22,76 +22,124 @@ from hops import util as hopsutil
 class ExperimentDriver(object):
 
     SECRET_BYTES = 8
+    EXPERIMENT_TYPE = 'UNKNOWN'
 
-    def __init__(self, searchspace, optimizer, direction, num_trials, name, num_executors, hb_interval, es_policy, es_interval, es_min, description, app_dir, log_dir, trial_dir):
+    # TODO rewrite with @classmethod
 
+    # for now, we infer the experiment type (an optimization experiment or an ablation study)
+    # using keyword arguments, and set ExperimentDriver.EXPERIMENT_TYPE to an according string.
+    # Some of these arguments are required for any maggy experiment:
+    # num_trials, name, num_executors, hb_interval, description, app_dir, log_dir, trial_dir
+    # while some are specific to the type of experiment. For example, if the ExperimentDriver constructor
+    # is called with a `searchspace` parameter, we infer that it is a hyperparameter optimization task,
+    # and if it is called with `ablationstudy` parameter, we infer that it's an ablation study.
+
+    # So we first setup the type-specific experiment requirements, and then the general ones
+
+    def __init__(self, experiment_type, **kwargs):
+
+
+        # COMMON EXPERIMENT SETUP
         self._final_store = []
-
-        # perform type checks
-        if isinstance(searchspace, Searchspace):
-            self.searchspace = searchspace
-        else:
-            raise Exception(
-                "No valid searchspace. Please use maggy Searchspace class.")
-
-        if isinstance(optimizer, str):
-            if optimizer.lower() == 'randomsearch':
-                self.optimizer = RandomSearch(num_trials, self.searchspace, self._final_store)
-            else:
-                raise Exception(
-                    "Unknown Optimizer. Can't initialize experiment driver.")
-        elif isinstance(optimizer, AbstractOptimizer):
-            print("Custom Optimizer initialized.")
-            self.optimizer = optimizer
-        else:
-            raise Exception(
-                "Unknown Optimizer. Can't initialize experiment driver.")
-
-        if isinstance(direction, str):
-            if direction.lower() not in ['min', 'max']:
-                raise Exception(
-                    "Unknown direction. Can't initialize experiment driver.")
-        else:
-            raise Exception(
-                "Unknown direction. Can't initialize experiment driver.")
-
-        if isinstance(es_policy, str):
-            if es_policy.lower() == 'median':
-                self.earlystop_check = MedianStoppingRule.earlystop_check
-            else:
-                raise Exception(
-                    "Unknown Early Stopping Policy. Can't initialize experiment driver.")
-        elif isinstance(es_policy, AbstractEarlyStop):
-            print("Custom Early Stopping policy initialized.")
-            self.earlystop_check = es_policy.earlystop_check
-
-        self.direction = direction.lower()
         self._trial_store = {}
-        self.num_executors = num_executors
+        self.num_executors = kwargs.get('num_executors')
         self._message_q = queue.Queue()
-        self.name = name
-        self.num_trials = num_trials
+        self.name = kwargs.get('name')
+        self.num_trials = kwargs.get('num_trials')
         self.experiment_done = False
         self.worker_done = False
-        self.hb_interval = hb_interval
-        self.es_interval = es_interval
-        self.es_min = es_min
-        self.description = description
-        self.direction = direction.lower()
-        self.server = rpc.Server(num_executors)
+        self.hb_interval = kwargs.get('hb_interval')
+        self.description = kwargs.get('description')
+
+        # TYPE-SPECIFIC EXPERIMENT SETUP
+        # TODO or use a 'type' parameter?
+        if experiment_type == 'optimization':
+            # set up an optimization experiment
+            ExperimentDriver.EXPERIMENT_TYPE = 'optimization'
+
+            searchspace = kwargs.get('searchspace')
+            if isinstance(searchspace, Searchspace):
+                self.searchspace = searchspace
+            else:
+                raise Exception(
+                    "The experiment's search space should be an instance of maggy.Searchspace, "
+                    "but it is {0} (of type '{1}')."
+                    .format(str(searchspace), type(searchspace).__name__))
+
+            optimizer = kwargs.get('optimizer')
+            if isinstance(optimizer, str):
+                if optimizer.lower() == 'randomsearch':
+                    self.optimizer = RandomSearch(self.num_trials, self.searchspace, self._final_store)
+            elif isinstance(optimizer, AbstractOptimizer):
+                self.optimizer = optimizer
+                print("Custom Optimizer initialized.")  # TODO do we need this print?
+            else:
+                raise Exception(
+                    "The experiment's optimizer should be either an string indicating the name "
+                    "of an implemented optimizer (such as 'randomsearch') or an instance of "
+                    "maggy.optimizer.AbstractOptimizer, "
+                    "but it is {0} (of type '{1}')."
+                    .format(str(optimizer), type(optimizer).__name__))
+
+            direction = kwargs.get('direction')
+            if isinstance(direction, str):
+                if direction.lower() in ['min', 'max']:
+                    self.direction = direction.lower()
+            else:
+                raise Exception(
+                    "The experiment's direction should be an string (either 'min' or 'max') "
+                    "but it is {0} (of type '{1}')."
+                    .format(str(direction), type(direction).__name__))
+
+            es_policy = kwargs.get('es_policy')
+            if isinstance(es_policy, str):
+                if es_policy.lower() == 'median':
+                    self.early_stop_check = MedianStoppingRule.earlystop_check
+            elif isinstance(es_policy, AbstractEarlyStop):
+                self.early_stop_check = es_policy.earlystop_check
+                print("Custom Early Stopping policy initialized.")  # TODO do we need this print?
+            else:
+                raise Exception(
+                    "The experiment's early stopping policy should either be a 'median' "
+                    "or a custom policy that is an instance of maggy.earlystop.AbstractEarlyStop, "
+                    "but it is {0} (of type '{1}')."
+                    .format(str(es_policy), type(es_policy).__name__))
+
+            self.es_interval = kwargs.get('es_interval')
+            self.es_min = kwargs.get('es_min')
+
+            self.result = {'best_val': 'n.a.',
+                           'num_trials': 0,
+                           'early_stopped': 0}
+
+        elif experiment_type == 'ablation':
+            ExperimentDriver.EXPERIMENT_TYPE = 'ablation'
+            # set up an ablation study experiment
+
+            # XXX setup ablation result schema
+            self.result = {'best_val': 'n.a.',
+                           'num_trials': 0,
+                           'early_stopped': 0}
+        else:
+            raise Exception(
+                "Unknown experiment type. experiment_type should be either 'optimization' or 'ablation', "
+                "but it is {0}."
+                .format(str(experiment_type)))
+
+            # throw exception and exit
+
+        # FINALIZE EXPERIMENT SETUP
+        self.server = rpc.Server(self.num_executors)
         self._secret = self._generate_secret(ExperimentDriver.SECRET_BYTES)
-        self.result = {'best_val': 'n.a.',
-            'num_trials': 0,
-            'early_stopped': 0}
         self.job_start = datetime.now()
         self.executor_logs = ''
         self.maggy_log = ''
         self.log_lock = threading.RLock()
-        self.log_file = log_dir + '/maggy.log'
-        self.trial_dir = trial_dir
-        self.app_dir = app_dir
+        self.log_file = kwargs.get('log_dir') + '/maggy.log'
+        self.trial_dir = kwargs.get('trial_dir')
+        self.app_dir = kwargs.get('app_dir')
 
-        #Open File desc for HDFS to log
+        # Open File desc for HDFS to log
         if not hopshdfs.exists(self.log_file):
             hopshdfs.dump('', self.log_file)
         self.fd = hopshdfs.open_file(self.log_file, flags='w')
