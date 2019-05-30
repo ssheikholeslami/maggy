@@ -13,6 +13,8 @@ from maggy.core import rpc
 from maggy.trial import Trial
 from maggy.earlystop import AbstractEarlyStop, MedianStoppingRule
 from maggy.searchspace import Searchspace
+from maggy.ablation.ablator import AbstractAblator, LOFO
+from maggy.ablation.ablationstudy import AblationStudy
 
 from hops import constants as hopsconstants
 from hops import hdfs as hopshdfs
@@ -119,6 +121,15 @@ class ExperimentDriver(object):
             ExperimentDriver.EXPERIMENT_TYPE = 'ablation'
             # set up an ablation study experiment
 
+
+            ablator = kwargs.get('ablator') # XXX wtf ablator... maybe planner is a better name
+            if isinstance(ablator, str):
+                if ablator == 'LOFO':
+                    self.ablator = LOFO()
+                    ### XXX RESUME
+
+
+
             # XXX setup ablation result schema
             self.result = {'best_val': 'n.a.',
                            'num_trials': 0,
@@ -151,7 +162,10 @@ class ExperimentDriver(object):
 
         self.server_addr = self.server.start(self)
 
-        self.optimizer.initialize()
+        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+            self.optimizer.initialize()
+        elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+            self.ablator.initialize()
 
         self._start_worker()
 
