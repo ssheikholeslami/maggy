@@ -94,13 +94,16 @@ class ExperimentDriver(object):
             es_policy = kwargs.get('es_policy')
             if isinstance(es_policy, str):
                 if es_policy.lower() == 'median':
-                    self.early_stop_check = MedianStoppingRule.earlystop_check
+                    self.earlystop_check = MedianStoppingRule.earlystop_check
+                    # XXX should also throw an exception if it's a string but not 'median'!
+                    # also the same thing for optimizers, etc.
+                    # XXX check self.early_stop_check vs. self.earlystop_check
             elif isinstance(es_policy, AbstractEarlyStop):
-                self.early_stop_check = es_policy.earlystop_check
+                self.earlystop_check = es_policy.earlystop_check
                 print("Custom Early Stopping policy initialized.")  # TODO do we need this print?
             else:
                 raise Exception(
-                    "The experiment's early stopping policy should either be a 'median' "
+                    "The experiment's early stopping policy should either be string ('median' or 'none') "
                     "or a custom policy that is an instance of maggy.earlystop.AbstractEarlyStop, "
                     "but it is {0} (of type '{1}')."
                     .format(str(es_policy), type(es_policy).__name__))
