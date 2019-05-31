@@ -143,8 +143,8 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
 
         # Force execution on executor, since GPU is located on executor
         job_start = datetime.now()
-        nodeRDD.foreachPartition(trialexecutor._prepare_func(app_id, run_id,
-            map_fun, server_addr, hb_interval, exp_driver._secret, app_dir))
+        nodeRDD.foreachPartition(trialexecutor._prepare_func(app_id, run_id, experiment_type,
+                                 map_fun, server_addr, hb_interval, exp_driver._secret, app_dir))
         job_end = datetime.now()
 
         result = exp_driver.finalize(job_start, job_end)

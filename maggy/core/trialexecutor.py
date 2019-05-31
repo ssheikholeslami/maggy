@@ -14,7 +14,7 @@ if config.tf_version >= 2:
     from tensorboard.plugins.hparams import summary_v2
 
 
-def _prepare_func(app_id, run_id, map_fun, server_addr, hb_interval, secret, app_dir):
+def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_interval, secret, app_dir):
 
     def _wrapper_fun(iter):
         """
@@ -56,7 +56,12 @@ def _prepare_func(app_id, run_id, map_fun, server_addr, hb_interval, secret, app
             client.start_heartbeat(reporter)
 
             # blocking
-            trial_id, parameters = client.get_suggestion()
+            if experiment_type == 'optimization':
+                trial_id, parameters = client.get_suggestion()
+            elif experiment_type == 'ablation':
+                trial_id, trial_config = client.get_suggestion()
+                dataset_creation_function = get_dataset_creation_function()
+
 
             while not client.done:
 
@@ -68,7 +73,11 @@ def _prepare_func(app_id, run_id, map_fun, server_addr, hb_interval, secret, app
 
                 try:
                     reporter.log("Starting Trial: {}".format(trial_id), False)
-                    reporter.log("Parameter Combination: {}".format(parameters), False)
+                    if experiment_type == 'optimization':
+                        reporter.log("Parameter Combination: {}".format(parameters), False)
+                    elif experiment_type == 'ablation':
+                        reporter.log("ABLATION CONFIG", False)  # XXX
+
                     retval = map_fun(**parameters, reporter=reporter)
 
                     # Make sure user function returns a numeric value

@@ -2,10 +2,14 @@ import json
 
 
 class AblationStudy(object):
-    def __init__(self, **kwargs):
+    def __init__(self, training_dataset_name, training_dataset_version, label_name, **kwargs):
         self.features = Features()
         # TODO call the featurestore and save the list of features of the dataset
-        self.layers = Layers()
+        self.models = Models()
+        self.hops_training_dataset_name = training_dataset_name
+        self.hops_training_dataset_version = training_dataset_version
+        self.label_name = label_name
+        self.custom_dataset_generator = kwargs.get('dataset_generator', False)
 
 
 class Features(object):
@@ -52,6 +56,6 @@ class Features(object):
             print(feature)
 
 
-class Layers(object):
+class Models(object):
     def __init__(self):
         self._included_layers = set()
