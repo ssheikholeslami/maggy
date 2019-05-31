@@ -121,14 +121,25 @@ class ExperimentDriver(object):
             ExperimentDriver.EXPERIMENT_TYPE = 'ablation'
             # set up an ablation study experiment
 
-
             ablator = kwargs.get('ablator') # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
                 if ablator == 'LOFO':
-                    self.ablator = LOFO()
-                    ### XXX RESUME
-
-
+                    self.ablator = LOFO() # TODO set this up
+                else:
+                    raise Exception(
+                        "The experiment's ablation study policy should either be string ('lofo') "
+                        "or a custom policy that is an instance of maggy.ablation.ablation.AbstractAblator, "
+                        "but it is {0} (of type '{1}')."
+                        .format(str(ablator), type(ablator).__name__))
+            elif isinstance(ablator, AbstractAblator):
+                self.ablator = ablator
+                print("Custom Ablator initialized. \n")
+            else:
+                raise Exception(
+                    "The experiment's ablation study policy should either be string ('lofo') "
+                    "or a custom policy that is an instance of maggy.ablation.ablation.AbstractAblator, "
+                    "but it is {0} (of type '{1}')."
+                    .format(str(ablator), type(ablator).__name__))
 
             # XXX setup ablation result schema
             self.result = {'best_val': 'n.a.',

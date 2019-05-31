@@ -55,5 +55,3 @@ class Features(object):
 class Layers(object):
     def __init__(self):
         self._included_layers = set()
-
-
