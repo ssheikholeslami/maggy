@@ -14,7 +14,7 @@ class AbstractAblator(ABC):
         pass
 
     @abstractmethod
-    def get_dataset_generator(self, hops_dataset, dataset_type='tfrecord'):
+    def get_dataset_generator(self, ablated_feature, dataset_type='tfrecord'):
         pass
 
     @abstractmethod
