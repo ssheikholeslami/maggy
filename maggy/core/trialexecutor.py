@@ -56,11 +56,8 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
             client.start_heartbeat(reporter)
 
             # blocking
-            # if experiment_type == 'optimization':
+            # XXX separate suggestion calls for different types?
             trial_id, parameters = client.get_suggestion()
-            # elif experiment_type == 'ablation':
-                # trial_id, trial_config = client.get_suggestion()
-                # dataset_creation_function = get_dataset_creation_function()
 
             while not client.done:
 
