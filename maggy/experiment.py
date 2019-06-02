@@ -162,7 +162,10 @@ def lagom(map_fun, experiment_type,
 
         exp_driver._log("Finished Experiment")
 
-    except:
+    # TODO return back to except: and also remove the print
+    # TODO fix the to_json() method so can reuse _exception_handler()
+    except Exception as e:
+        print("COULD NOT INITIALIZE EXP_DRIVER: " + str(e))
         _exception_handler()
         raise
     finally:
