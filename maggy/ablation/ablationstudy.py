@@ -1,6 +1,3 @@
-import json
-
-
 class AblationStudy(object):
     def __init__(self, training_dataset_name, training_dataset_version,
                  label_name, num_epochs, batch_size, **kwargs):
@@ -62,3 +59,5 @@ class Features(object):
 class Models(object):
     def __init__(self):
         self._included_layers = set()
+
+# TODO add to_dict method

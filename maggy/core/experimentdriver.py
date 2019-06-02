@@ -353,16 +353,18 @@ class ExperimentDriver(object):
             'user': user,
             'name': self.name,
             'module': 'maggy',
-            'function': self.optimizer.__class__.__name__,
             'app_id': str(sc.applicationId),
             'start': self.job_start.isoformat(),
             'memory_per_executor': str(sc._conf.get("spark.executor.memory")),
             'gpus_per_executor': str(sc._conf.get("spark.executor.gpus")),
             'executors': self.num_executors,
             'logdir': self.trial_dir,
-            'hyperparameter_space': json.dumps(self.searchspace.to_dict()),
             # 'versioned_resources': versioned_resources,
             'description': self.description}
+        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+            experiment_json['hyperparameter_space'] = json.dumps(self.searchspace.to_dict())
+            experiment_json['function'] = self.optimizer.__class__.__name__,
+
 
         if self.experiment_done:
             experiment_json['status'] = "FINISHED"
