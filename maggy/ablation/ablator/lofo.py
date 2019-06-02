@@ -2,7 +2,7 @@ from maggy.ablation.ablator import AbstractAblator
 from maggy.ablation.ablationstudy import AblationStudy
 from hops import featurestore
 import tensorflow as tf
-from maggy.ablation import AblationTrial
+from maggy import Trial
 
 
 class LOFO(AbstractAblator):
@@ -34,6 +34,7 @@ class LOFO(AbstractAblator):
             num_epochs = self.ablation_study.num_epochs
 
             def create_tf_dataset():
+                # TODO @Moritz: go with shadowing? i.e., def create_tf_dataset(ablated_feature)?
                 SHUFFLE_BUFFER_SIZE = 10000  # XXX parametrize?
                 dataset_dir = featurestore.get_training_dataset_path(training_dataset_name,
                                                                      training_dataset_version)
@@ -61,26 +62,34 @@ class LOFO(AbstractAblator):
 
             return create_tf_dataset
 
-    def get_model_generator(self):
-        pass
+    def get_model_generator(self, ablated_layer=None):
+        base_model_generator = self.ablation_study.models.base_model_generator
+
+        def model_generator():
+            base_model = base_model_generator()
+            base_json = base_model.to_json()  # XXX we can later decide if we want to use json or YAML
+            # or a CUSTOM SERIALIZER
+
+            # DO MODEL-JSON MANGLING, using the `ablated_layer` thingy
+            new_json = base_json  # XXX for now
+            new_model = tf.keras.models.model_from_json(new_json)
+            return new_model
+        return model_generator
 
     def initialize(self):
         """
         Prepares all the trials for LOFO policy. Trials will consist of `n` dataset generator callables,
         where `n` is equal to the number of features that are included in the ablation study (i.e. the features that
         will be removed one-at-a-time).
-        :return:
         """
         for feature in self.ablation_study.features.included_features:
-            pass
-            # TODO resume here
-
-        pass
+            trial_dict = {'dataset_function': self.get_dataset_generator(ablated_feature=feature),
+                          'model_function': self.ablation_study.base_model_generator}
+            # since this is LOFO, not LOLO or LOMO :D
+            # model_function = self.get_model_generator()  # TODO check this later
+            self.trial_buffer.append(Trial(trial_dict))
 
     def get_trial(self, trial=None):
-        # get a new dataset generator
-        # get a new model generator
-        # wrap it in a trial
         if self.trial_buffer:
             return self.trial_buffer.pop()
         else:

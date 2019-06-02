@@ -18,7 +18,7 @@ class AbstractAblator(ABC):
         pass
 
     @abstractmethod
-    def get_model_generator(self):
+    def get_model_generator(self, ablated_layer):
         pass
 
     @abstractmethod
