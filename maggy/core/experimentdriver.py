@@ -123,7 +123,7 @@ class ExperimentDriver(object):
             ablation_study = kwargs.get('ablation_study')
             ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
-                if ablator == 'LOFO':
+                if ablator.lower() == 'lofo':
                     self.ablator = LOFO(self.num_trials, ablation_study, self._final_store)
                 else:
                     raise Exception(
