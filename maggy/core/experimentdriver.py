@@ -40,7 +40,6 @@ class ExperimentDriver(object):
 
     def __init__(self, experiment_type, **kwargs):
 
-
         # COMMON EXPERIMENT SETUP
         self._final_store = []
         self._trial_store = {}
@@ -51,6 +50,7 @@ class ExperimentDriver(object):
         self.worker_done = False
         self.hb_interval = kwargs.get('hb_interval')
         self.description = kwargs.get('description')
+        # self.experiment_type = experiment_type  # XXX use instance attribute or global var?
 
         # TYPE-SPECIFIC EXPERIMENT SETUP
         if experiment_type == 'optimization':
@@ -299,7 +299,10 @@ class ExperimentDriver(object):
                     hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
 
                     # assign new trial
-                    trial = self.optimizer.get_suggestion(trial)
+                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                        trial = self.optimizer.get_suggestion(trial)
+                    elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+                        trial = self.ablator.get_trial(trial)
                     if trial is None:
                         self.server.reservations.assign_trial(
                             msg['partition_id'], None)
@@ -314,7 +317,10 @@ class ExperimentDriver(object):
 
                 # 4. REG
                 elif msg['type'] == 'REG':
-                    trial = self.optimizer.get_suggestion()
+                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                        trial = self.optimizer.get_suggestion()
+                    elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+                        trial = self.ablator.get_trial()
                     if trial is None:
                         self.experiment_done = True
                     else:
