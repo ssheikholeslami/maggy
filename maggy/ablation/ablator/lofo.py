@@ -1,10 +1,13 @@
 from maggy.ablation.ablator import AbstractAblator
+from maggy.ablation.ablationstudy import AblationStudy
 from hops import featurestore
 import tensorflow as tf
+from maggy.ablation import AblationTrial
 
 
 class LOFO(AbstractAblator):
 
+    # TODO add this logic
     def calculate_number_of_trials(self):
         pass
 
@@ -22,9 +25,8 @@ class LOFO(AbstractAblator):
         """
 
         if self.ablation_study.custom_dataset_generator:
-            pass  # XXX process and change the custom dataset generator
+            pass  # TODO process and change the custom dataset generator
         else:
-            # XXX RESUME
             training_dataset_name = self.ablation_study.training_dataset_name
             training_dataset_version = self.ablation_study.training_dataset_version
             label_name = self.ablation_study.label_name
@@ -63,12 +65,26 @@ class LOFO(AbstractAblator):
         pass
 
     def initialize(self):
+        """
+        Prepares all the trials for LOFO policy. Trials will consist of `n` dataset generator callables,
+        where `n` is equal to the number of features that are included in the ablation study (i.e. the features that
+        will be removed one-at-a-time).
+        :return:
+        """
+        for feature in self.ablation_study.features.included_features:
+            pass
+            # TODO resume here
 
         pass
 
     def get_trial(self, trial=None):
-        # set a new model
-        pass
+        # get a new dataset generator
+        # get a new model generator
+        # wrap it in a trial
+        if self.trial_buffer:
+            return self.trial_buffer.pop()
+        else:
+            return None
 
     def finalize_experiment(self, trials):
         pass

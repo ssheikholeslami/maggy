@@ -26,7 +26,15 @@ class AbstractAblator(ABC):
         pass
 
     @abstractmethod
-    def get_trial(self, trial=None):
+    def get_trial(self, ablation_trial=None):
+        """
+        Return a trial to be assigned to an executor.
+        The trial should contain a dataset generator and a model generator.
+        Depending on the ablator policy, the trials could come from a list (buffer) of pre-made trials,
+        Or generated on the fly.
+        :param trial:
+        :return:
+        """
         pass
 
     @abstractmethod
