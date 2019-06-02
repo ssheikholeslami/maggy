@@ -53,11 +53,16 @@ class Features(object):
 
     def list_all(self):
         for feature in self.included_features:
-            print(feature)
+            print(feature)  # TODO proper printing
 
 
 class Models(object):
     def __init__(self):
         self._included_layers = set()
+        self.base_model_generator = None
+
+    def set_base_model_generator(self, base_model_generator):
+        self.base_model_generator = base_model_generator
+
 
 # TODO add to_dict method
