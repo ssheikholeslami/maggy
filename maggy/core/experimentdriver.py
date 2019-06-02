@@ -121,7 +121,7 @@ class ExperimentDriver(object):
             ExperimentDriver.EXPERIMENT_TYPE = 'ablation'
             # set up an ablation study experiment
 
-            ablator = kwargs.get('ablator') # XXX wtf ablator... maybe planner is a better name
+            ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
                 if ablator == 'LOFO':
                     self.ablator = LOFO() # TODO set this up

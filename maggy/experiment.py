@@ -30,9 +30,9 @@ experiment_json = None
 
 
 def lagom(map_fun, experiment_type,
-          searchspace, optimizer, direction,
-          ablation_study, ablator,
           num_trials, name, hb_interval=1,
+          searchspace=None, optimizer=None, direction=None,
+          ablation_study=None, ablator=None,
           es_policy='median', es_interval=300, es_min=10, description=''):
     """Launches a maggy experiment, which depending on `experiment_type` can
     either be hyperparameter optimization or ablation study.
