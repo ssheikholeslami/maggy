@@ -29,7 +29,11 @@ elastic_id = 1
 experiment_json = None
 
 
-def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trials, name, hb_interval=1, es_policy='median', es_interval=300, es_min=10, description=''):
+def lagom(map_fun, experiment_type,
+          searchspace, optimizer, direction,
+          ablation_study, ablator,
+          num_trials, name, hb_interval=1,
+          es_policy='median', es_interval=300, es_min=10, description=''):
     """Launches a maggy experiment, which depending on `experiment_type` can
     either be hyperparameter optimization or ablation study.
 
@@ -104,23 +108,26 @@ def lagom(map_fun, experiment_type, searchspace, optimizer, direction, num_trial
         #hopshdfs.dump('writing proto buf worked', log_dir+'/maggy.log')
 
         num_executors = util.num_executors()
+        # XXX clean way to infer the number of trials for ablation
+
+        assert num_trials > 0, "number of trials should be greater than zero"
+        if num_executors > num_trials:
+           num_executors = num_trials
+
+        nodeRDD = sc.parallelize(range(num_executors), num_executors)
+
+        # start experiment driver
         if experiment_type == 'optimization':
-            assert num_trials > 0, "number of trials should be greater than zero"
-            if num_executors > num_trials:
-               num_executors = num_trials
-
-            nodeRDD = sc.parallelize(range(num_executors), num_executors)
-
-            # start experiment driver
             exp_driver = ExperimentDriver('optimization', searchspace=searchspace, optimizer=optimizer,
                                           direction=direction, num_trials=num_trials, name=name,
                                           num_executors=num_executors, hb_interval=hb_interval, es_policy=es_policy,
                                           es_interval=es_interval, es_min=es_min, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
-
         elif experiment_type == 'ablation':
-            pass
-
+            exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
+                                          num_trials=num_trials, name=name, num_executors=num_executors,
+                                          hb_interval=hb_interval, description=description,
+                                          app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
         else:
             running = False
             raise RuntimeError(

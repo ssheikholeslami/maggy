@@ -5,6 +5,7 @@ import tensorflow as tf
 
 class LOFO(AbstractAblator):
 
+    @classmethod
     def calculate_number_of_trials(self):
         pass
 
