@@ -242,7 +242,7 @@ class ExperimentDriver(object):
                 except:
                     msg = {'type': None}
 
-                util.quick_log("before earlystop check")
+                util.quick_log("before earlystop check, " + str(self.es_interval))
                 if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
                     time_earlystop_check = datetime.now()
                     util.quick_log("in earlystopping check")
