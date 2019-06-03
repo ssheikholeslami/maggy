@@ -9,8 +9,8 @@ import json
 class LOFO(AbstractAblator):
 
     # TODO add this logic
-    def calculate_number_of_trials(self):
-        pass
+    def get_number_of_trials(self):
+        return len(self.ablation_study.features.included_features)
 
     def get_dataset_generator(self, ablated_feature, dataset_type='tfrecord'):
         """
@@ -91,6 +91,7 @@ class LOFO(AbstractAblator):
         where `n` is equal to the number of features that are included in the ablation study (i.e. the features that
         will be removed one-at-a-time).
         """
+
         for feature in self.ablation_study.features.included_features:
             trial_dict = {'dataset_function': self.get_dataset_generator(ablated_feature=feature),
                           'model_function': self.ablation_study.base_model_generator}

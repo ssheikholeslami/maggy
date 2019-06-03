@@ -3,14 +3,13 @@ from abc import ABC, abstractmethod
 
 class AbstractAblator(ABC):
 
-    def __init__(self, num_trials, ablation_study, final_store):
+    def __init__(self, ablation_study, final_store):
         self.ablation_study = ablation_study
         self.final_store = final_store
         self.trial_buffer = []
-        self.num_trials = num_trials
 
     @abstractmethod
-    def calculate_number_of_trials(self):
+    def get_number_of_trials(self):
         pass
 
     @abstractmethod

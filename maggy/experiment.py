@@ -30,8 +30,8 @@ experiment_json = None
 
 
 def lagom(map_fun, experiment_type,
-          num_trials, name, hb_interval=1,
-          searchspace=None, optimizer=None, direction=None,
+          name, hb_interval=1,
+          num_trials=None, searchspace=None, optimizer=None, direction=None,
           ablation_study=None, ablator=None,
           es_policy='median', es_interval=300, es_min=10, description=''):
     """Launches a maggy experiment, which depending on `experiment_type` can
@@ -110,14 +110,15 @@ def lagom(map_fun, experiment_type,
         num_executors = util.num_executors()
         # XXX clean way to infer the number of trials for ablation
 
-        assert num_trials > 0, "number of trials should be greater than zero"
-        if num_executors > num_trials:
-            num_executors = num_trials
-
         nodeRDD = sc.parallelize(range(num_executors), num_executors)
 
         # start experiment driver
         if experiment_type == 'optimization':
+
+            assert num_trials > 0, "number of trials should be greater than zero"
+            if num_executors > num_trials:
+                num_executors = num_trials
+
             exp_driver = ExperimentDriver('optimization', searchspace=searchspace, optimizer=optimizer,
                                           direction=direction, num_trials=num_trials, name=name,
                                           num_executors=num_executors, hb_interval=hb_interval, es_policy=es_policy,
@@ -126,7 +127,7 @@ def lagom(map_fun, experiment_type,
         elif experiment_type == 'ablation':
             try:
                 exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
-                                              num_trials=num_trials, name=name, num_executors=num_executors,
+                                              name=name, num_executors=num_executors,
                                               hb_interval=hb_interval, description=description,
                                               app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
             except Exception as e:

@@ -124,7 +124,10 @@ class ExperimentDriver(object):
             ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
                 if ablator.lower() == 'lofo':
-                    self.ablator = LOFO(self.num_trials, ablation_study, self._final_store)
+                    self.ablator = LOFO(ablation_study, self._final_store)
+                    self.num_trials = self.ablator.get_number_of_trials()
+                    if self.num_executors > self.num_trials:
+                        self.num_executors = self.num_trials
                 else:
                     raise Exception(
                         "The experiment's ablation study policy should either be string ('lofo') "
