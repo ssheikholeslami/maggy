@@ -65,7 +65,7 @@ class LOFO(AbstractAblator):
 
     def get_model_generator(self, ablated_layer=None):
 
-        base_model_generator = self.ablation_study.models.base_model_generator
+        base_model_generator = self.ablation_study.model.base_model_generator
 
         def model_generator():
             base_model = base_model_generator()
