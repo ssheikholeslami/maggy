@@ -15,8 +15,9 @@ class LOFO(AbstractAblator):
         # XXX for debugging, remove later
         self.abs_path = hopshdfs.abs_path('')
         self.log_file = self.abs_path + 'ablation_debug.log'
-        if not hopshdfs.exists(self.log_file):
-            hopshdfs.dump('', self.log_file)
+
+        # if not hopshdfs.exists(self.log_file):
+        #     hopshdfs.dump('', self.log_file)
         self.fd = hopshdfs.open_file(self.log_file, flags='w')
 
     def _log(self, log_msg):
