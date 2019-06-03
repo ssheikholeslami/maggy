@@ -20,6 +20,7 @@ from hops import constants as hopsconstants
 from hops import hdfs as hopshdfs
 from hops import util as hopsutil
 
+import traceback
 
 class ExperimentDriver(object):
 
@@ -185,7 +186,7 @@ class ExperimentDriver(object):
         try:
             self._start_worker()
         except Exception as e:
-            util.quick_log("EXCEPTION: " + str(e))
+            util.quick_log("EXCEPTION: " + traceback.format_exc())
 
     def finalize(self, job_start, job_end):
 
@@ -239,7 +240,7 @@ class ExperimentDriver(object):
                     msg = self._message_q.get_nowait()
                     util.quick_log("success with the first try clause... msg is" + str(msg))
                 except Exception as e:
-                    util.quick_log("EXCEPTION: while calling get_nowait()...\n" + str(e))
+                    util.quick_log("EXCEPTION: while calling get_nowait()...\n" + traceback.format_exc())
                     msg = {'type': None}
 
                 if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
