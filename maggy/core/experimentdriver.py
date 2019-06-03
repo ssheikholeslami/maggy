@@ -184,7 +184,7 @@ class ExperimentDriver(object):
         try:
             self._start_worker()
         except Exception as e:
-            print("EXCEPTION: " + str(e))
+            self._log("EXCEPTION: " + str(e))
 
     def finalize(self, job_start, job_end):
 

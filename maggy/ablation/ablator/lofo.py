@@ -46,8 +46,13 @@ class LOFO(AbstractAblator):
                                      in meta.training_datasets[training_dataset_name +
                                                                '_'
                                                                + str(training_dataset_version)].features]
+                # XXX remove prints after debugging
+                print('training_features is originally: \n' + str(training_features))
+                print('now removing ablated_feature: {}'.format(ablated_feature))
                 training_features.remove(ablated_feature)
+                print('now removing label: {}'.format(label_name))
                 training_features.remove(label_name)
+                print('now creating decode function with the list: \n' + str(training_features))
 
                 def decode(example_proto):
                     example = tf.parse_single_example(example_proto, tf_record_schema)
