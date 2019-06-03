@@ -125,13 +125,10 @@ def lagom(map_fun, experiment_type,
                                           es_interval=es_interval, es_min=es_min, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
         elif experiment_type == 'ablation':
-            try:
-                exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
-                                              name=name, num_executors=num_executors,
-                                              hb_interval=hb_interval, description=description,
-                                              app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
-            except Exception as e:
-                print("EXP_DRIVER EXCEPTION: " + str(e))
+            exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
+                                          name=name, num_executors=num_executors,
+                                          hb_interval=hb_interval, description=description,
+                                          app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
         else:
             running = False
             raise RuntimeError(
