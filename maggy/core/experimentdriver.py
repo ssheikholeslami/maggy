@@ -223,6 +223,8 @@ class ExperimentDriver(object):
 
     def _start_worker(self):
 
+        util.quick_log('entered _start_worker')
+
         def _target_function(self):
 
             time_earlystop_check = datetime.now()
@@ -232,6 +234,7 @@ class ExperimentDriver(object):
                 # get a message
                 try:
                     msg = self._message_q.get_nowait()
+                    util.quick_log('success with the first try clause... msg is' + str(msg))
                 except:
                     msg = {'type': None}
 
@@ -340,6 +343,7 @@ class ExperimentDriver(object):
 
         t = threading.Thread(target=_target_function, args=(self,))
         t.daemon = True
+        util.quick_log("starting the thread...")
         t.start()
 
     def stop(self):
