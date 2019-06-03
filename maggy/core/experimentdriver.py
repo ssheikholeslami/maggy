@@ -181,7 +181,10 @@ class ExperimentDriver(object):
         elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
             self.ablator.initialize()
 
-        self._start_worker()
+        try:
+            self._start_worker()
+        except Exception as e:
+            print("EXCEPTION: " + str(e))
 
     def finalize(self, job_start, job_end):
 
