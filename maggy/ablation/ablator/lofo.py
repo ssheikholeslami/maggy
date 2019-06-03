@@ -28,8 +28,8 @@ class LOFO(AbstractAblator):
         if self.ablation_study.custom_dataset_generator:
             pass  # TODO process and change the custom dataset generator
         else:
-            training_dataset_name = self.ablation_study.training_dataset_name
-            training_dataset_version = self.ablation_study.training_dataset_version
+            training_dataset_name = self.ablation_study.hops_training_dataset_name
+            training_dataset_version = self.ablation_study.hops_training_dataset_version
             label_name = self.ablation_study.label_name
             batch_size = self.ablation_study.batch_size
             num_epochs = self.ablation_study.num_epochs
