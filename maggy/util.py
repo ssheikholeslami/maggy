@@ -118,11 +118,9 @@ def quick_log(log_msg, path_from_resources='DEBUG.log'):
     """
     abs_path = hopshdfs.abs_path('') + 'Resources/'
     log_file = abs_path + path_from_resources
-
     if not hopshdfs.exists(log_file):
-        hopshdfs.dump('', log_file)
+        hopshdfs.dump(log_msg, log_file)
     fd = hopshdfs.open_file(log_file, flags='a')
     msg = datetime.now().isoformat() + ': ' + str(log_msg)
     fd.write((msg + '\n').encode())
-    fd.flush()
     fd.close()
