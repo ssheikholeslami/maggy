@@ -30,10 +30,11 @@ class Trial(object):
         # XXX temp fix, have to come up with abstractions
         if self.trial_type == 'optimization':
             self.trial_id = Trial._generate_id(params)
+            self.params = params
         elif self.trial_type == 'ablation':
-            serializable_dict = {'ablated_feature': params['ablated_feature']}
-            self.trial_id = Trial._generate_id(serializable_dict)
-        self.params = params
+            serializable_params = {'ablated_feature': params['ablated_feature']}
+            self.trial_id = Trial._generate_id(serializable_params)
+            self.params = serializable_params
         self.status = Trial.PENDING
         self.early_stop = False
         self.final_metric = None
