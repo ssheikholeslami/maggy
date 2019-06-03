@@ -239,14 +239,16 @@ class ExperimentDriver(object):
                     util.quick_log("worker is not done and  trying to get a message")
                     msg = self._message_q.get_nowait()
                     util.quick_log("success with the first try clause... msg is" + str(msg))
-                except Exception as e:
-                    util.quick_log("EXCEPTION: while calling get_nowait()...\n" + traceback.format_exc())
+                except:
                     msg = {'type': None}
 
+                util.quick_log("before earlystop check")
                 if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
                     time_earlystop_check = datetime.now()
+                    util.quick_log("in earlystopping check")
+                    util.quick_log("in earlystopping..EXCEPTION:\n" + traceback.format_exc())
 
-                    # pass currently running trials to early stop component
+                # pass currently running trials to early stop component
                     if len(self._final_store) > self.es_min:
                         self._log("Check for early stopping.")
                         try:
