@@ -236,7 +236,7 @@ class ExperimentDriver(object):
                     trial = None
                     # get a message
                     try:
-                        util.quick_log("worker is not done and  trying to get a message")
+                        # util.quick_log("worker is not done and  trying to get a message")
                         msg = self._message_q.get_nowait()
                         util.quick_log("success with the first try clause... msg is" + str(msg))
                     except:
