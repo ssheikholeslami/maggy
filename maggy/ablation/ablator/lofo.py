@@ -12,21 +12,7 @@ class LOFO(AbstractAblator):
 
     def __init__(self, ablation_study, final_store):
         super().__init__(ablation_study, final_store)
-        # XXX for debugging, remove later
-        self.abs_path = hopshdfs.abs_path('') + 'Resources/'
-        self.log_file = self.abs_path + 'ablation_debug.log'
 
-        if not hopshdfs.exists(self.log_file):
-            hopshdfs.dump('', self.log_file)
-        self.fd = hopshdfs.open_file(self.log_file, flags='a')
-
-    def _log(self, log_msg):
-        """Logs a string to the maggy driver log file.
-        """
-        msg = datetime.now().isoformat() + ': ' + str(log_msg)
-        self.fd.write((msg + '\n').encode())
-
-# TODO add this logic
     def get_number_of_trials(self):
         return len(self.ablation_study.features.included_features)
 
@@ -66,6 +52,7 @@ class LOFO(AbstractAblator):
                                                                + str(training_dataset_version)].features]
                 training_features.remove(ablated_feature)
                 training_features.remove(label_name)
+
                 def decode(example_proto):
                     example = tf.parse_single_example(example_proto, tf_record_schema)
                     x = []
@@ -95,7 +82,6 @@ class LOFO(AbstractAblator):
             new_dict['config']['layers'] = list_of_layers
             new_json = json.dumps(new_dict)
             new_model = tf.keras.models.model_from_json(new_json)
-
 
             return new_model
         return model_generator
