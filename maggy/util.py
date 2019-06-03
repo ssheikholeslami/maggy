@@ -110,9 +110,10 @@ def _progress_bar(done, total):
             return bar
 
 
-def universal_logger(path_from_resources):
+def quick_log(log_msg, path_from_resources='DEBUG.log'):
     """
     An inefficient yet quick logger to save you from banging your head on your desk
+    :param log_msg: the actual message to write to the file
     :param path_from_resources: path relative to the `Resources` folder in hops
     """
     abs_path = hopshdfs.abs_path('') + 'Resources/'
@@ -125,8 +126,3 @@ def universal_logger(path_from_resources):
     fd.write((msg + '\n').encode())
     fd.flush()
     fd.close()
-
-
-def _log(file_descriptor, log_msg):
-    msg = datetime.now().isoformat() + ': ' + str(log_msg)
-    file_descriptor.write((msg + '\n').encode())

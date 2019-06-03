@@ -180,11 +180,12 @@ class ExperimentDriver(object):
             self.optimizer.initialize()
         elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
             self.ablator.initialize()
+            util.quick_log("INITIALIZED ABLATION!")
 
         try:
             self._start_worker()
         except Exception as e:
-            self._log("EXCEPTION: " + str(e))
+            util.quick_log("EXCEPTION: " + str(e))
 
     def finalize(self, job_start, job_end):
 
@@ -370,7 +371,6 @@ class ExperimentDriver(object):
         if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
             experiment_json['hyperparameter_space'] = json.dumps(self.searchspace.to_dict())
             experiment_json['function'] = self.optimizer.__class__.__name__,
-
 
         if self.experiment_done:
             experiment_json['status'] = "FINISHED"
