@@ -25,8 +25,9 @@ class LOFO(AbstractAblator):
         """
         msg = datetime.now().isoformat() + ': ' + str(log_msg)
         self.fd.write((msg + '\n').encode())
+        self.fd.flush()
 
-    # TODO add this logic
+# TODO add this logic
     def get_number_of_trials(self):
         return len(self.ablation_study.features.included_features)
 
