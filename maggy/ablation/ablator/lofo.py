@@ -3,6 +3,7 @@ from maggy.ablation.ablationstudy import AblationStudy
 from hops import featurestore
 import tensorflow as tf
 from maggy import Trial
+import json
 
 
 class LOFO(AbstractAblator):
@@ -63,16 +64,24 @@ class LOFO(AbstractAblator):
             return create_tf_dataset
 
     def get_model_generator(self, ablated_layer=None):
+
         base_model_generator = self.ablation_study.models.base_model_generator
 
         def model_generator():
             base_model = base_model_generator()
-            base_json = base_model.to_json()  # XXX we can later decide if we want to use json or YAML
-            # or a CUSTOM SERIALIZER
 
-            # DO MODEL-JSON MANGLING, using the `ablated_layer` thingy
-            new_json = base_json  # XXX for now
+            list_of_layers = [layer for layer in base_model.get_config()['layers']]
+            for layer in list_of_layers:
+                if layer['config']['name'] == ablated_layer:
+                    list_of_layers.remove(layer)
+
+            base_json = base_model.to_json()  # TODO support YAML and maybe custom serializers
+            new_dict = json.loads(base_json)
+            new_dict['config']['layers'] = list_of_layers
+            new_json = json.dumps(new_dict)
             new_model = tf.keras.models.model_from_json(new_json)
+
+
             return new_model
         return model_generator
 
