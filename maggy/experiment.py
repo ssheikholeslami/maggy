@@ -112,7 +112,7 @@ def lagom(map_fun, experiment_type,
 
         assert num_trials > 0, "number of trials should be greater than zero"
         if num_executors > num_trials:
-           num_executors = num_trials
+            num_executors = num_trials
 
         nodeRDD = sc.parallelize(range(num_executors), num_executors)
 
@@ -124,10 +124,13 @@ def lagom(map_fun, experiment_type,
                                           es_interval=es_interval, es_min=es_min, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
         elif experiment_type == 'ablation':
-            exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
-                                          num_trials=num_trials, name=name, num_executors=num_executors,
-                                          hb_interval=hb_interval, description=description,
-                                          app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
+            try:
+                exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
+                                              num_trials=num_trials, name=name, num_executors=num_executors,
+                                              hb_interval=hb_interval, description=description,
+                                              app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
+            except Exception as e:
+                print("EXP_DRIVER EXCEPTION: " + str(e))
         else:
             running = False
             raise RuntimeError(
@@ -164,8 +167,7 @@ def lagom(map_fun, experiment_type,
 
     # TODO return back to except: and also remove the print
     # TODO fix the to_json() method so can reuse _exception_handler()
-    except Exception as e:
-        print("COULD NOT INITIALIZE EXP_DRIVER: " + str(e))
+    except:
         _exception_handler()
         raise
     finally:
