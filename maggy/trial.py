@@ -18,14 +18,21 @@ class Trial(object):
     ERROR = "ERROR"
     FINALIZED = "FINALIZED"
 
-    def __init__(self, params):
+    def __init__(self, params, trial_type):
         """Create a new trial object from a hyperparameter combination
         ``params``.
 
         :param params: A dictionary of Hyperparameters as key value pairs.
         :type params: dict
         """
-        self.trial_id = Trial._generate_id(params)
+
+        self.trial_type = trial_type
+        # XXX temp fix, have to come up with abstractions
+        if self.trial_type == 'optimization':
+            self.trial_id = Trial._generate_id(params)
+        elif self.trial_type == 'ablation':
+            serializable_dict = {'ablated_feature': params['ablated_feature']}
+            self.trial_id = Trial._generate_id(serializable_dict)
         self.params = params
         self.status = Trial.PENDING
         self.early_stop = False
