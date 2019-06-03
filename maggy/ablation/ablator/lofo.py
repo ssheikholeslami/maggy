@@ -31,10 +31,8 @@ class LOFO(AbstractAblator):
             training_dataset_name = self.ablation_study.hops_training_dataset_name
             training_dataset_version = self.ablation_study.hops_training_dataset_version
             label_name = self.ablation_study.label_name
-            batch_size = self.ablation_study.batch_size
-            num_epochs = self.ablation_study.num_epochs
 
-            def create_tf_dataset():
+            def create_tf_dataset(num_epochs, batch_size):
                 # TODO @Moritz: go with shadowing? i.e., def create_tf_dataset(ablated_feature)?
                 SHUFFLE_BUFFER_SIZE = 10000  # XXX parametrize?
                 dataset_dir = featurestore.get_training_dataset_path(training_dataset_name,
