@@ -224,130 +224,129 @@ class ExperimentDriver(object):
 
     def _start_worker(self):
 
-        util.quick_log('entered _start_worker')
+        util.quick_log('entered _start_worker, experiment_type is: ' + ExperimentDriver.EX)
+        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+            def _target_function(self):
 
-        def _target_function(self):
+                time_earlystop_check = datetime.now()
 
-            time_earlystop_check = datetime.now()
+                util.quick_log("inside the thread...")
 
-            util.quick_log("inside the thread...")
+                while not self.worker_done:
+                    trial = None
+                    # get a message
+                    try:
+                        util.quick_log("worker is not done and  trying to get a message")
+                        msg = self._message_q.get_nowait()
+                        util.quick_log("success with the first try clause... msg is" + str(msg))
+                    except:
+                        msg = {'type': None}
 
-            while not self.worker_done:
-                trial = None
-                # get a message
-                try:
-                    util.quick_log("worker is not done and  trying to get a message")
-                    msg = self._message_q.get_nowait()
-                    util.quick_log("success with the first try clause... msg is" + str(msg))
-                except:
-                    msg = {'type': None}
+                    if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
+                        time_earlystop_check = datetime.now()
 
-                util.quick_log("before earlystop check, " + str(self.es_interval))
-                if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
-                    time_earlystop_check = datetime.now()
-                    util.quick_log("in earlystopping check")
-                    util.quick_log("in earlystopping..EXCEPTION:\n" + traceback.format_exc())
+                    # pass currently running trials to early stop component
+                        if len(self._final_store) > self.es_min:
+                            self._log("Check for early stopping.")
+                            try:
+                                to_stop = self.earlystop_check(
+                                    self._trial_store, self._final_store, self.direction)
+                            except Exception as e:
+                                self._log(e)
+                                # log the final store in case of median exception
+                                for i in self._final_store:
+                                    self._log(json.dumps(i))
+                                raise
+                            if len(to_stop) > 0:
+                                self._log("Trials to stop: {}".format(to_stop))
+                            for trial_id in to_stop:
+                                self.get_trial(trial_id).set_early_stop()
 
-                # pass currently running trials to early stop component
-                    if len(self._final_store) > self.es_min:
-                        self._log("Check for early stopping.")
-                        try:
-                            to_stop = self.earlystop_check(
-                                self._trial_store, self._final_store, self.direction)
-                        except Exception as e:
-                            self._log(e)
-                            # log the final store in case of median exception
-                            for i in self._final_store:
-                                self._log(json.dumps(i))
-                            raise
-                        if len(to_stop) > 0:
-                            self._log("Trials to stop: {}".format(to_stop))
-                        for trial_id in to_stop:
-                            self.get_trial(trial_id).set_early_stop()
+                    # depending on message do the work
+                    # 1. METRIC
+                    if msg['type'] == 'METRIC':
+                        # append executor logs if in the message
+                        logs = msg.get('logs', None)
+                        if logs is not None:
+                            with self.log_lock:
+                                self.executor_logs = self.executor_logs + logs
 
-                # depending on message do the work
-                # 1. METRIC
-                if msg['type'] == 'METRIC':
-                    # append executor logs if in the message
-                    logs = msg.get('logs', None)
-                    if logs is not None:
-                        with self.log_lock:
-                            self.executor_logs = self.executor_logs + logs
+                        if msg['trial_id'] is not None and msg['data'] is not None:
+                            self.get_trial(msg['trial_id']).append_metric(msg['data'])
 
-                    if msg['trial_id'] is not None and msg['data'] is not None:
-                        self.get_trial(msg['trial_id']).append_metric(msg['data'])
-
-                # 2. BLACKLIST the trial
-                elif msg['type'] == 'BLACK':
-                    trial = self.get_trial(msg['trial_id'])
-                    with trial.lock:
-                        trial.status = Trial.SCHEDULED
-                        self.server.reservations.assign_trial(
-                            msg['partition_id'], msg['trial_id'])
-
-                # 3. FINAL
-                elif msg['type'] == 'FINAL':
-                    # set status
-                    # get trial only once
-                    trial = self.get_trial(msg['trial_id'])
-
-                    logs = msg.get('logs', None)
-                    if logs is not None:
-                        with self.log_lock:
-                            self.executor_logs = self.executor_logs + logs
-
-                    # finalize the trial object
-                    with trial.lock:
-                        trial.status = Trial.FINALIZED
-                        trial.final_metric = msg['data']
-                        trial.duration = hopsutil._time_diff(
-                            trial.start, datetime.now())
-
-                    # move trial to the finalized ones
-                    self._final_store.append(trial)
-                    self._trial_store.pop(trial.trial_id)
-
-                    # update result dictionary
-                    self._update_result(trial)
-                    # keep for later in case tqdm doesn't work
-                    self.maggy_log = self._update_maggy_log()
-                    self._log(self.maggy_log)
-
-                    hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
-
-                    # assign new trial
-                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
-                        trial = self.optimizer.get_suggestion(trial)
-                    elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
-                        trial = self.ablator.get_trial(trial)
-                    if trial is None:
-                        self.server.reservations.assign_trial(
-                            msg['partition_id'], None)
-                        self.experiment_done = True
-                    else:
+                    # 2. BLACKLIST the trial
+                    elif msg['type'] == 'BLACK':
+                        trial = self.get_trial(msg['trial_id'])
                         with trial.lock:
-                            trial.start = datetime.now()
                             trial.status = Trial.SCHEDULED
                             self.server.reservations.assign_trial(
-                                msg['partition_id'], trial.trial_id)
-                            self.add_trial(trial)
+                                msg['partition_id'], msg['trial_id'])
 
-                # 4. REG
-                elif msg['type'] == 'REG':
-                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
-                        trial = self.optimizer.get_suggestion()
-                    elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
-                        trial = self.ablator.get_trial()
-                    if trial is None:
-                        self.experiment_done = True
-                    else:
+                    # 3. FINAL
+                    elif msg['type'] == 'FINAL':
+                        # set status
+                        # get trial only once
+                        trial = self.get_trial(msg['trial_id'])
+
+                        logs = msg.get('logs', None)
+                        if logs is not None:
+                            with self.log_lock:
+                                self.executor_logs = self.executor_logs + logs
+
+                        # finalize the trial object
                         with trial.lock:
-                            trial.start = datetime.now()
-                            trial.status = Trial.SCHEDULED
-                            self.server.reservations.assign_trial(
-                                msg['partition_id'], trial.trial_id)
-                            self.add_trial(trial)
+                            trial.status = Trial.FINALIZED
+                            trial.final_metric = msg['data']
+                            trial.duration = hopsutil._time_diff(
+                                trial.start, datetime.now())
 
+                        # move trial to the finalized ones
+                        self._final_store.append(trial)
+                        self._trial_store.pop(trial.trial_id)
+
+                        # update result dictionary
+                        self._update_result(trial)
+                        # keep for later in case tqdm doesn't work
+                        self.maggy_log = self._update_maggy_log()
+                        self._log(self.maggy_log)
+
+                        hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
+
+                        # assign new trial
+                        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                            trial = self.optimizer.get_suggestion(trial)
+                        elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+                            trial = self.ablator.get_trial(trial)
+                        if trial is None:
+                            self.server.reservations.assign_trial(
+                                msg['partition_id'], None)
+                            self.experiment_done = True
+                        else:
+                            with trial.lock:
+                                trial.start = datetime.now()
+                                trial.status = Trial.SCHEDULED
+                                self.server.reservations.assign_trial(
+                                    msg['partition_id'], trial.trial_id)
+                                self.add_trial(trial)
+
+                    # 4. REG
+                    elif msg['type'] == 'REG':
+                        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                            trial = self.optimizer.get_suggestion()
+                        elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+                            trial = self.ablator.get_trial()
+                        if trial is None:
+                            self.experiment_done = True
+                        else:
+                            with trial.lock:
+                                trial.start = datetime.now()
+                                trial.status = Trial.SCHEDULED
+                                self.server.reservations.assign_trial(
+                                    msg['partition_id'], trial.trial_id)
+                                self.add_trial(trial)
+        elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+            def _target_function(self):
+                util.quick_log("Entered the ablation _target_function...")
         t = threading.Thread(target=_target_function, args=(self,))
         t.daemon = True
         util.quick_log("starting the thread...")
