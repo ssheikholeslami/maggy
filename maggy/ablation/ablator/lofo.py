@@ -1,12 +1,28 @@
 from maggy.ablation.ablator import AbstractAblator
 from maggy.ablation.ablationstudy import AblationStudy
 from hops import featurestore
+from hops import hdfs as hopshdfs
 import tensorflow as tf
 from maggy import Trial
 import json
+from datetime import datetime
 
 
 class LOFO(AbstractAblator):
+
+    def __init__(self, ablation_study, final_store):
+        super().__init__(ablation_study, final_store)
+        # XXX for debugging, remove later
+        self.log_file = 'ablation_debug.log'
+        if not hopshdfs.exists(self.log_file):
+            hopshdfs.dump('', self.log_file)
+        self.fd = hopshdfs.open_file(self.log_file, flags='w')
+
+    def _log(self, log_msg):
+        """Logs a string to the maggy driver log file.
+        """
+        msg = datetime.now().isoformat() + ': ' + str(log_msg)
+        self.fd.write((msg + '\n').encode())
 
     # TODO add this logic
     def get_number_of_trials(self):
@@ -47,12 +63,12 @@ class LOFO(AbstractAblator):
                                                                '_'
                                                                + str(training_dataset_version)].features]
                 # XXX remove prints after debugging
-                print('training_features is originally: \n' + str(training_features))
-                print('now removing ablated_feature: {}'.format(ablated_feature))
+                self._log('training_features is originally: \n' + str(training_features))
+                self._log('now removing ablated_feature: {}'.format(ablated_feature))
                 training_features.remove(ablated_feature)
-                print('now removing label: {}'.format(label_name))
+                self._log('now removing label: {}'.format(label_name))
                 training_features.remove(label_name)
-                print('now creating decode function with the list: \n' + str(training_features))
+                self._log('now creating decode function with the list: \n' + str(training_features))
 
                 def decode(example_proto):
                     example = tf.parse_single_example(example_proto, tf_record_schema)
