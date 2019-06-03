@@ -18,14 +18,13 @@ class LOFO(AbstractAblator):
 
         if not hopshdfs.exists(self.log_file):
             hopshdfs.dump('', self.log_file)
-        self.fd = hopshdfs.open_file(self.log_file, flags='w')
+        self.fd = hopshdfs.open_file(self.log_file, flags='a')
 
     def _log(self, log_msg):
         """Logs a string to the maggy driver log file.
         """
         msg = datetime.now().isoformat() + ': ' + str(log_msg)
         self.fd.write((msg + '\n').encode())
-        self.fd.flush()
 
 # TODO add this logic
     def get_number_of_trials(self):
@@ -65,14 +64,8 @@ class LOFO(AbstractAblator):
                                      in meta.training_datasets[training_dataset_name +
                                                                '_'
                                                                + str(training_dataset_version)].features]
-                # XXX remove prints after debugging
-                self._log('training_features is originally: \n' + str(training_features))
-                self._log('now removing ablated_feature: {}'.format(ablated_feature))
                 training_features.remove(ablated_feature)
-                self._log('now removing label: {}'.format(label_name))
                 training_features.remove(label_name)
-                self._log('now creating decode function with the list: \n' + str(training_features))
-
                 def decode(example_proto):
                     example = tf.parse_single_example(example_proto, tf_record_schema)
                     x = []
