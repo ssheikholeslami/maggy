@@ -224,7 +224,7 @@ class ExperimentDriver(object):
 
     def _start_worker(self):
 
-        util.quick_log('entered _start_worker, experiment_type is: ' + ExperimentDriver.EX)
+        util.quick_log('entered _start_worker, experiment_type is: ' + ExperimentDriver.EXPERIMENT_TYPE)
         if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
             def _target_function(self):
 
