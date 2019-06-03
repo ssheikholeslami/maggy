@@ -229,13 +229,17 @@ class ExperimentDriver(object):
 
             time_earlystop_check = datetime.now()
 
+            util.quick_log("inside the thread...")
+
             while not self.worker_done:
                 trial = None
                 # get a message
                 try:
+                    util.quick_log("worker is not done and  trying to get a message")
                     msg = self._message_q.get_nowait()
-                    util.quick_log('success with the first try clause... msg is' + str(msg))
-                except:
+                    util.quick_log("success with the first try clause... msg is" + str(msg))
+                except Exception as e:
+                    util.quick_log("EXCEPTION: while calling get_nowait()...\n" + str(e))
                     msg = {'type': None}
 
                 if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
