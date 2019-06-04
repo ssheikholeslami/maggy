@@ -124,3 +124,4 @@ def quick_log(log_msg, path_from_resources='DEBUG.log'):
     msg = datetime.now().isoformat() + ': ' + str(log_msg)
     fd.write((msg + '\n').encode())
     fd.close()
+    del fd

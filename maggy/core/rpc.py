@@ -419,7 +419,7 @@ class Client(MessageSocket):
         debug_log = "in _request, called with: \n" \
                     "req_sock" + str(req_sock) + "\n" \
                     "msg_type" + str(msg_type) + "\n"
-        util.quick_log('debug_log')
+        util.quick_log(debug_log)
 
         msg = {}
         msg['partition_id'] = self.partition_id
