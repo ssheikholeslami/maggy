@@ -143,9 +143,14 @@ class MessageSocket(object):
         Returns:
 
         """
+        util.quick_log("PREP-SENDING msg on sock: " + str(msg))
         data = pickle.dumps(msg)
+        util.quick_log("PREP-SENDING data (pickle) on sock: " + str(data))
         buf = struct.pack('>I', len(data)) + data
+        util.quick_log("PREP-SENDING buf on sock: " + str(buf))
         sock.sendall(buf)
+        util.quick_log("SENT buf on sock: " + str(buf))
+
 
 
 class Server(MessageSocket):
