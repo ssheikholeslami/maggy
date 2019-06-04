@@ -8,6 +8,8 @@ import socket
 import secrets
 import json
 
+import traceback
+
 from maggy.trial import Trial
 
 from hops import constants as hopsconstants
@@ -445,6 +447,7 @@ class Client(MessageSocket):
                 tries += 1
                 if tries >= MAX_RETRIES:
                     raise
+                util.quick_log("Socket Error: " + traceback.extract_tb())
                 print("Socket error: {}".format(e))
                 req_sock.close()
                 req_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
