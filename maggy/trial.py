@@ -123,7 +123,7 @@ class Trial(object):
             instance = cls(temp_dict.get('params'))
             instance.trial_id = temp_dict['trial_id']
             instance.status = temp_dict['status']
-            instance.early_stop = temp_dict['early_stop']
+            instance.early_stop = temp_dict.get('early_stop', False)
             instance.final_metric = temp_dict['final_metric']
             instance.metric_history = temp_dict['metric_history']
             instance.duration = temp_dict['duration']

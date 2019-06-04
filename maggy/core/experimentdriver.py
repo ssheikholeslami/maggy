@@ -7,11 +7,12 @@ import json
 import os
 import secrets
 from datetime import datetime
+from sys import maxsize as integer_max
 from maggy import util
 from maggy.optimizer import AbstractOptimizer, RandomSearch
 from maggy.core import rpc
 from maggy.trial import Trial
-from maggy.earlystop import AbstractEarlyStop, MedianStoppingRule
+from maggy.earlystop import AbstractEarlyStop, MedianStoppingRule, NoStoppingRule
 from maggy.searchspace import Searchspace
 from maggy.ablation.ablator import AbstractAblator, LOFO
 from maggy.ablation.ablationstudy import AblationStudy
@@ -51,6 +52,8 @@ class ExperimentDriver(object):
         self.hb_interval = kwargs.get('hb_interval')
         self.description = kwargs.get('description')
         self.experiment_type = experiment_type
+        self.es_interval = integer_max  # XXX not the cleanest way
+        self.es_min = integer_max
 
         # TYPE-SPECIFIC EXPERIMENT SETUP
         if self.experiment_type == 'optimization':
@@ -99,6 +102,8 @@ class ExperimentDriver(object):
                     # XXX should also throw an exception if it's a string but not 'median'!
                     # also the same thing for optimizers, etc.
                     # XXX check self.early_stop_check vs. self.earlystop_check
+                elif es_policy.lower() == 'none':
+                    self.earlystop_check = NoStoppingRule.earlystop_check
             elif isinstance(es_policy, AbstractEarlyStop):
                 self.earlystop_check = es_policy.earlystop_check
                 print("Custom Early Stopping policy initialized.")  # TODO do we need this print?
@@ -118,6 +123,7 @@ class ExperimentDriver(object):
 
         elif self.experiment_type == 'ablation':
             # set up an ablation study experiment
+            self.earlystop_check = NoStoppingRule.earlystop_check
             ablation_study = kwargs.get('ablation_study')
             ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
@@ -239,26 +245,22 @@ class ExperimentDriver(object):
                 except:
                     msg = {'type': None}
 
-                if self.experiment_type == 'optimization':
-                    if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
-                        time_earlystop_check = datetime.now()
+                if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
+                    time_earlystop_check = datetime.now()
 
-                    # pass currently running trials to early stop component
-                        if len(self._final_store) > self.es_min:
-                            self._log("Check for early stopping.")
-                            try:
-                                to_stop = self.earlystop_check(
-                                    self._trial_store, self._final_store, self.direction)
-                            except Exception as e:
-                                self._log(e)
-                                # log the final store in case of median exception
-                                for i in self._final_store:
-                                    self._log(json.dumps(i))
-                                raise
-                            if len(to_stop) > 0:
-                                self._log("Trials to stop: {}".format(to_stop))
-                            for trial_id in to_stop:
-                                self.get_trial(trial_id).set_early_stop()
+                # pass currently running trials to early stop component
+                    if len(self._final_store) > self.es_min:
+                        self._log("Check for early stopping.")
+                        try:
+                            to_stop = self.earlystop_check(
+                                self._trial_store, self._final_store, self.direction)
+                        except Exception as e:
+                            self._log(e)
+                            to_stop = []
+                        if len(to_stop) > 0:
+                            self._log("Trials to stop: {}".format(to_stop))
+                        for trial_id in to_stop:
+                            self.get_trial(trial_id).set_early_stop()
 
                 # depending on message do the work
                 # 1. METRIC
@@ -388,7 +390,8 @@ class ExperimentDriver(object):
             experiment_json['status'] = "FINISHED"
             experiment_json['finished'] = self.job_end.isoformat()
             experiment_json['duration'] = self.duration
-            experiment_json['hyperparameter'] = json.dumps(self.result['best_hp'])
+            if self.experiment_type == 'optimization':
+                experiment_json['hyperparameter'] = json.dumps(self.result['best_hp'])
             experiment_json['metric'] = self.result['best_val']
 
         else:
@@ -423,6 +426,7 @@ class ExperimentDriver(object):
                 self.result['early_stopped'] += 1
 
             return
+        # TODO handle for ablation
         if self.direction == 'max':
             if metric > self.result['best_val']:
                 self.result['best_val'] = metric
