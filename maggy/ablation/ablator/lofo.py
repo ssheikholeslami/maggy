@@ -3,7 +3,7 @@ from maggy.ablation.ablationstudy import AblationStudy
 from hops import featurestore
 from hops import hdfs as hopshdfs
 import tensorflow as tf
-from maggy import Trial
+from maggy.trial import Trial
 import json
 from datetime import datetime
 
