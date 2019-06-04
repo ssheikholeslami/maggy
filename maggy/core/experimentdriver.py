@@ -22,15 +22,14 @@ from hops import util as hopsutil
 
 import traceback
 
+
 class ExperimentDriver(object):
 
     SECRET_BYTES = 8
-    EXPERIMENT_TYPE = 'UNKNOWN'
-
     # TODO rewrite with @classmethod
 
     # for now, we infer the experiment type (an optimization experiment or an ablation study)
-    # using keyword arguments, and set ExperimentDriver.EXPERIMENT_TYPE to an according string.
+    # using keyword arguments, and set self.experiment_type to an according string.
     # Some of these arguments are required for any maggy experiment:
     # num_trials, name, num_executors, hb_interval, description, app_dir, log_dir, trial_dir
     # while some are specific to the type of experiment. For example, if the ExperimentDriver constructor
@@ -51,12 +50,11 @@ class ExperimentDriver(object):
         self.worker_done = False
         self.hb_interval = kwargs.get('hb_interval')
         self.description = kwargs.get('description')
-        # self.experiment_type = experiment_type  # XXX use instance attribute or global var?
+        self.experiment_type = experiment_type
 
         # TYPE-SPECIFIC EXPERIMENT SETUP
-        if experiment_type == 'optimization':
+        if self.experiment_type == 'optimization':
             # set up an optimization experiment
-            ExperimentDriver.EXPERIMENT_TYPE = 'optimization'
 
             self.num_trials = kwargs.get('num_trials')
 
@@ -118,8 +116,7 @@ class ExperimentDriver(object):
                            'num_trials': 0,
                            'early_stopped': 0}
 
-        elif experiment_type == 'ablation':
-            ExperimentDriver.EXPERIMENT_TYPE = 'ablation'
+        elif self.experiment_type == 'ablation':
             # set up an ablation study experiment
             ablation_study = kwargs.get('ablation_study')
             ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
@@ -153,7 +150,7 @@ class ExperimentDriver(object):
             raise Exception(
                 "Unknown experiment type. experiment_type should be either 'optimization' or 'ablation', "
                 "but it is {0}."
-                .format(str(experiment_type)))
+                .format(str(self.experiment_type)))
 
             # throw exception and exit
 
@@ -177,9 +174,9 @@ class ExperimentDriver(object):
 
         self.server_addr = self.server.start(self)
 
-        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+        if self.experiment_type == 'optimization':
             self.optimizer.initialize()
-        elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+        elif self.experiment_type == 'ablation':
             self.ablator.initialize()
             util.quick_log("INITIALIZED ABLATION!")
 
@@ -224,7 +221,7 @@ class ExperimentDriver(object):
 
     def _start_worker(self):
 
-        util.quick_log('entered _start_worker, experiment_type is: ' + ExperimentDriver.EXPERIMENT_TYPE)
+        util.quick_log('entered _start_worker, experiment_type is: ' + self.experiment_type)
 
         def _target_function(self):
 
@@ -242,7 +239,7 @@ class ExperimentDriver(object):
                 except:
                     msg = {'type': None}
 
-                if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                if self.experiment_type == 'optimization':
                     if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
                         time_earlystop_check = datetime.now()
 
@@ -313,13 +310,13 @@ class ExperimentDriver(object):
 
                     util.quick_log("Finalized trial... before JSON dump")
 
-                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                    if self.experiment_type == 'optimization':
                         hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
 
                     # assign new trial
-                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                    if self.experiment_type == 'optimization':
                         trial = self.optimizer.get_suggestion(trial)
-                    elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+                    elif self.experiment_type == 'ablation':
                         trial = self.ablator.get_trial(trial)
                     if trial is None:
                         self.server.reservations.assign_trial(
@@ -337,9 +334,9 @@ class ExperimentDriver(object):
 
                 # 4. REG
                 elif msg['type'] == 'REG':
-                    if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+                    if self.experiment_type == 'optimization':
                         trial = self.optimizer.get_suggestion()
-                    elif ExperimentDriver.EXPERIMENT_TYPE == 'ablation':
+                    elif self.experiment_type == 'ablation':
                         trial = self.ablator.get_trial()
                     if trial is None:
                         self.experiment_done = True
@@ -383,7 +380,7 @@ class ExperimentDriver(object):
             'logdir': self.trial_dir,
             # 'versioned_resources': versioned_resources,
             'description': self.description}
-        if ExperimentDriver.EXPERIMENT_TYPE == 'optimization':
+        if self.experiment_type == 'optimization':
             experiment_json['hyperparameter_space'] = json.dumps(self.searchspace.to_dict())
             experiment_json['function'] = self.optimizer.__class__.__name__,
 
@@ -482,3 +479,4 @@ class ExperimentDriver(object):
         """
         msg = datetime.now().isoformat() + ': ' + str(log_msg)
         self.fd.write((msg + '\n').encode())
+

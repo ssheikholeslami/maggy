@@ -230,7 +230,6 @@ class Server(MessageSocket):
         elif msg_type == 'METRIC':
             # add metric msg to the exp driver queue
             exp_driver.add_message(msg)
-            util.quick_log("It's METRIC, msg is" + str(msg) + " and added to exp_driver")
 
             if msg['trial_id'] is None:
                 send['type'] = 'OK'
@@ -239,17 +238,15 @@ class Server(MessageSocket):
             elif msg['trial_id'] is not None:
                 if msg.get('data', None) is None:
                     send['type'] = 'OK'
-                    util.quick_log("It's METRIC, msg is" + str(msg) + " before sending on socket")
                     MessageSocket.send(self, sock, send)
                     return
 
             # lookup executor reservation to find assigned trial
             trialId = msg['trial_id']
-            # get early stopping flag
-
-            util.quick_log("Is it you, earlystop?")
-            flag = exp_driver.get_trial(trialId).get_early_stop()
-            util.quick_log("Passed earlystop")
+            # get early stopping flag for optimization trials
+            flag = False
+            if exp_driver.experiment_type == 'optimization':
+                flag = exp_driver.get_trial(trialId).get_early_stop()
 
             if flag:
                 send['type'] = 'STOP'
@@ -293,7 +290,8 @@ class Server(MessageSocket):
                 send['ex_logs'] = None
             send['num_trials'] = exp_driver.num_trials
             send['to_date'] = result['num_trials']
-            send['stopped'] = result['early_stopped']
+            if exp_driver.experiment_type == 'optimization':
+                send['stopped'] = result['early_stopped']
             send['metric'] = result['best_val']
         else:
             send['type'] = "ERR"
@@ -452,7 +450,6 @@ class Client(MessageSocket):
                 tries += 1
                 if tries >= MAX_RETRIES:
                     raise
-                util.quick_log("Socket Error: " + traceback.extract_tb())
                 print("Socket error: {}".format(e))
                 req_sock.close()
                 req_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
