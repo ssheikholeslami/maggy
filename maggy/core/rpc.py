@@ -118,8 +118,11 @@ class MessageSocket(object):
         recv_len = -1
         while not recv_done:
             buf = sock.recv(BUFSIZE)
-            if buf is None or len(buf) == 0:
-                raise Exception("socket closed")
+            if buf is None:
+                raise Exception("socket closed because buffer is None")
+            elif len(buf) == 0:
+                raise Exception("socket closed because length of buffer is 0")
+
             if recv_len == -1:
                 recv_len = struct.unpack('>I', buf[:4])[0]
                 data += buf[4:]
@@ -383,6 +386,7 @@ class Server(MessageSocket):
                             self._handle_message(sock, msg, driver)
                         except Exception as e:
                             _ = e
+                            util.quick_log("closing socket due to exception: " + str(e), 'RPC_DEBUG.log')
                             sock.close()
                             CONNECTIONS.remove(sock)
 
@@ -455,6 +459,7 @@ class Client(MessageSocket):
                 if tries >= MAX_RETRIES:
                     raise
                 print("Socket error: {}".format(e))
+                util.quick_log("closing socket in client._request() due to exception: " + str(e), 'RPC_DEBUG.log')
                 req_sock.close()
                 req_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 req_sock.connect(self.server_addr)
