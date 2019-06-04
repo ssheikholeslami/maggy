@@ -146,13 +146,13 @@ class MessageSocket(object):
         Returns:
 
         """
-        util.quick_log("PREP-SENDING msg on sock: " + str(msg), 'RPC_DEBUG.log')
+        # util.quick_log("PREP-SENDING msg on sock: " + str(msg), 'RPC_DEBUG.log')
         data = pickle.dumps(msg)
-        util.quick_log("PREP-SENDING data (pickle) on sock: " + str(data), 'RPC_DEBUG.log')
+        # util.quick_log("PREP-SENDING data (pickle) on sock: " + str(data), 'RPC_DEBUG.log')
         buf = struct.pack('>I', len(data)) + data
-        util.quick_log("PREP-SENDING buf on sock: " + str(buf), 'RPC_DEBUG.log')
+        # util.quick_log("PREP-SENDING buf on sock: " + str(buf), 'RPC_DEBUG.log')
         sock.sendall(buf)
-        util.quick_log("SENT buf on sock: " + str(buf), 'RPC_DEBUG.log')
+        # util.quick_log("SENT buf on sock: " + str(buf), 'RPC_DEBUG.log')
 
 
 
@@ -381,12 +381,13 @@ class Server(MessageSocket):
                                                           exp_driver._secret):
                                 exp_driver._log("SERVER secret: {}".format(exp_driver._secret))
                                 exp_driver._log("ERROR: wrong secret {}".format(msg['secret']))
+                                util.quick_log("raising exception because of secret mismatch" + 'RPC_DEBUG.log')
                                 raise Exception
 
+                            util.quick_log("_handle_message: " + str(sock) + str(msg) + str(driver), 'RPC_DEBUG.log')
                             self._handle_message(sock, msg, driver)
                         except Exception as e:
                             _ = e
-                            util.quick_log("closing socket due to exception: " + str(e), 'RPC_DEBUG.log')
                             sock.close()
                             CONNECTIONS.remove(sock)
 
@@ -459,7 +460,6 @@ class Client(MessageSocket):
                 if tries >= MAX_RETRIES:
                     raise
                 print("Socket error: {}".format(e))
-                util.quick_log("closing socket in client._request() due to exception: " + str(e), 'RPC_DEBUG.log')
                 req_sock.close()
                 req_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 req_sock.connect(self.server_addr)
