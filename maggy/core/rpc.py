@@ -444,7 +444,7 @@ class Client(MessageSocket):
             else:
                 msg['logs'] = logs
 
-        #if msg_data or ((msg_data == True) or (msg_data == False)):
+        # if msg_data or ((msg_data == True) or (msg_data == False)):
         #    msg['data'] = msg_data
         msg['data'] = msg_data
         # util.quick_log("After the if clause... msg is: " + str(msg))
@@ -453,7 +453,7 @@ class Client(MessageSocket):
         while not done and tries < MAX_RETRIES:
             try:
                 # util.quick_log("Trying to send... tries is: " + str(tries))
-                util.quick_log("Trying to send... req_sock, msg: "+str(req_sock)+" " + str(msg), 'RPC_DEBUG.log')
+                # util.quick_log("Trying to send... req_sock, msg: "+str(req_sock)+" " + str(msg), 'RPC_DEBUG.log')
                 MessageSocket.send(self, req_sock, msg)
                 done = True
             except socket.error as e:
@@ -464,7 +464,7 @@ class Client(MessageSocket):
                 req_sock.close()
                 req_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 req_sock.connect(self.server_addr)
-        util.quick_log("REQ_SOCK PASSED is: " + str(req_sock),'RPC_DEBUG.log')
+        # util.quick_log("REQ_SOCK PASSED is: " + str(req_sock), 'RPC_DEBUG.log')
         resp = MessageSocket.receive(self, req_sock)
 
         return resp

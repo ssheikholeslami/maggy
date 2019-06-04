@@ -108,9 +108,6 @@ def lagom(map_fun, experiment_type,
         #hopshdfs.dump('writing proto buf worked', log_dir+'/maggy.log')
 
         num_executors = util.num_executors()
-        # XXX clean way to infer the number of trials for ablation
-
-        nodeRDD = sc.parallelize(range(num_executors), num_executors)
 
         # start experiment driver
         if experiment_type == 'optimization':
@@ -129,6 +126,9 @@ def lagom(map_fun, experiment_type,
                                           name=name, num_executors=num_executors,
                                           hb_interval=hb_interval, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
+
+            if num_executors > exp_driver.num_executors:
+                num_executors = exp_driver.num_executors
         else:
             running = False
             raise RuntimeError(
@@ -136,6 +136,7 @@ def lagom(map_fun, experiment_type,
                 "should be either 'optimization' or 'ablation', "
                 "But it is '{0}'".format(str(experiment_type)))
 
+        nodeRDD = sc.parallelize(range(num_executors), num_executors)
 
         # Make SparkUI intuitive by grouping jobs
         sc.setJobGroup("Maggy Experiment", "{}".format(name))
