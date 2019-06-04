@@ -1,7 +1,7 @@
 import json
 import threading
 import hashlib
-#from maggy import util
+from hops import hdfs as hopshdfs
 
 class Trial(object):
     """A Trial object contains all relevant information about the evaluation
@@ -40,7 +40,7 @@ class Trial(object):
         self.metric_history = []
         self.start = None
         self.duration = None
-        #util.quick_log("Initialized Trial: " + str(self))
+
         self.lock = threading.RLock()
 
     def get_early_stop(self):
@@ -128,3 +128,23 @@ class Trial(object):
             instance.duration = temp_dict['duration']
 
         return instance
+
+
+# XXX duplicate of util.quick_log(), temporarily added here because of the stupid pyspark import mystery
+
+
+def quick_log(log_msg, path_from_resources='DEBUG.log'):
+    """
+    An inefficient yet quick logger to save you from banging your head on your desk
+    :param log_msg: the actual message to write to the file
+    :param path_from_resources: path relative to the `Resources` folder in hops
+    """
+    abs_path = hopshdfs.abs_path('') + 'Resources/'
+    log_file = abs_path + path_from_resources
+    if not hopshdfs.exists(log_file):
+        hopshdfs.dump(log_msg, log_file)
+    fd = hopshdfs.open_file(log_file, flags='a')
+    msg = datetime.now().isoformat() + ': ' + str(log_msg)
+    fd.write((msg + '\n').encode())
+    fd.close()
+    del fd
