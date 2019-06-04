@@ -1,6 +1,8 @@
 import json
 import threading
 import hashlib
+from maggy import util
+
 
 class Trial(object):
     """A Trial object contains all relevant information about the evaluation
@@ -39,7 +41,7 @@ class Trial(object):
         self.metric_history = []
         self.start = None
         self.duration = None
-        print("TRIAL INITIALIZED: " + str(self.trial_id) + str(self.params))
+        util.quick_log("TRIAL INITIALIZED: " + str(self.trial_id) + str(self.params))
         self.lock = threading.RLock()
 
     def get_early_stop(self):
