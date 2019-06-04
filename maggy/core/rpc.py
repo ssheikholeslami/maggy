@@ -416,17 +416,12 @@ class Client(MessageSocket):
     def _request(self, req_sock, msg_type, msg_data=None, trial_id=None, logs=None):
         """Helper function to wrap msg w/ msg_type."""
 
-        debug_log = "in _request, called with: \n" \
-                    "req_sock" + str(req_sock) + "\n" \
-                    "msg_type" + str(msg_type) + "\n"
-        util.quick_log(debug_log)
-
         msg = {}
         msg['partition_id'] = self.partition_id
         msg['type'] = msg_type
         msg['secret'] = self._secret
 
-        util.quick_log('Message so far: ' + str(msg) + "\n")
+        # util.quick_log('Message so far: ' + str(msg) + "\n")
 
         if msg_type == 'FINAL' or msg_type == 'METRIC':
             msg['trial_id'] = trial_id
@@ -438,12 +433,12 @@ class Client(MessageSocket):
         #if msg_data or ((msg_data == True) or (msg_data == False)):
         #    msg['data'] = msg_data
         msg['data'] = msg_data
-        util.quick_log("After the if clause... msg is: " + str(msg))
+        # util.quick_log("After the if clause... msg is: " + str(msg))
         done = False
         tries = 0
         while not done and tries < MAX_RETRIES:
             try:
-                util.quick_log("Trying to send... tries is: " + str(tries))
+                # util.quick_log("Trying to send... tries is: " + str(tries))
                 MessageSocket.send(self, req_sock, msg)
                 done = True
             except socket.error as e:
