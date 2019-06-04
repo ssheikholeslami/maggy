@@ -35,6 +35,7 @@ class LOFO(AbstractAblator):
             training_dataset_name = self.ablation_study.hops_training_dataset_name
             training_dataset_version = self.ablation_study.hops_training_dataset_version
             label_name = self.ablation_study.label_name
+            # TODO return first trial with a dataset generator containing all features (the base)
 
             def create_tf_dataset(num_epochs, batch_size):
                 # TODO @Moritz: go with shadowing? i.e., def create_tf_dataset(ablated_feature)?

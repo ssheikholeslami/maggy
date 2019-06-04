@@ -290,8 +290,7 @@ class Server(MessageSocket):
                 send['ex_logs'] = None
             send['num_trials'] = exp_driver.num_trials
             send['to_date'] = result['num_trials']
-            if exp_driver.experiment_type == 'optimization':
-                send['stopped'] = result['early_stopped']
+            send['stopped'] = result['early_stopped']
             send['metric'] = result['best_val']
         else:
             send['type'] = "ERR"

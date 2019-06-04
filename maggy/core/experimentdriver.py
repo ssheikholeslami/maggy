@@ -151,7 +151,7 @@ class ExperimentDriver(object):
             # XXX setup ablation result schema
             self.result = {'best_val': 'n.a.',
                            'num_trials': 0,
-                           'early_stopped': 0}
+                           'early_stopped': 'n.a'}
         else:
             raise Exception(
                 "Unknown experiment type. experiment_type should be either 'optimization' or 'ablation', "
