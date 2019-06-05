@@ -147,13 +147,15 @@ class MessageSocket(object):
 
         """
         # util.quick_log("PREP-SENDING msg on sock: " + str(msg), 'RPC_DEBUG.log')
-        data = pickle.dumps(msg)
+        try:
+            data = pickle.dumps(msg)
+        except AttributeError as ae:
+            raise Exception("Pickling failed: " + str(ae))
         # util.quick_log("PREP-SENDING data (pickle) on sock: " + str(data), 'RPC_DEBUG.log')
         buf = struct.pack('>I', len(data)) + data
         # util.quick_log("PREP-SENDING buf on sock: " + str(buf), 'RPC_DEBUG.log')
         sock.sendall(buf)
         # util.quick_log("SENT buf on sock: " + str(buf), 'RPC_DEBUG.log')
-
 
 
 class Server(MessageSocket):
