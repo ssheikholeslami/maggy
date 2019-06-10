@@ -1,7 +1,6 @@
-
 import threading
 import struct
-import pickle
+import cloudpickle
 import time
 import select
 import socket
@@ -132,7 +131,7 @@ class MessageSocket(object):
                 recv_len -= len(buf)
             recv_done = (recv_len == 0)
 
-        msg = pickle.loads(data)
+        msg = cloudpickle.loads(data)
         return msg
 
     def send(self, sock, msg):
@@ -148,7 +147,7 @@ class MessageSocket(object):
         """
         # util.quick_log("PREP-SENDING msg on sock: " + str(msg), 'RPC_DEBUG.log')
         try:
-            data = pickle.dumps(msg)
+            data = cloudpickle.dumps(msg)
         except AttributeError as ae:
             raise Exception("Pickling failed: " + str(ae))
         # util.quick_log("PREP-SENDING data (pickle) on sock: " + str(data), 'RPC_DEBUG.log')
@@ -383,10 +382,8 @@ class Server(MessageSocket):
                                                           exp_driver._secret):
                                 exp_driver._log("SERVER secret: {}".format(exp_driver._secret))
                                 exp_driver._log("ERROR: wrong secret {}".format(msg['secret']))
-                                util.quick_log("raising exception because of secret mismatch" + 'RPC_DEBUG.log')
                                 raise Exception
 
-                            util.quick_log("_handle_message: " + str(sock) + str(msg) + str(driver), 'RPC_DEBUG.log')
                             self._handle_message(sock, msg, driver)
                         except Exception as e:
                             _ = e

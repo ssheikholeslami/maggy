@@ -184,12 +184,13 @@ class ExperimentDriver(object):
             self.optimizer.initialize()
         elif self.experiment_type == 'ablation':
             self.ablator.initialize()
-            util.quick_log("INITIALIZED ABLATION!")
+            # util.quick_log("INITIALIZED ABLATION!")
 
         try:
             self._start_worker()
         except Exception as e:
-            util.quick_log("EXCEPTION: " + traceback.format_exc())
+            raise
+            #util.quick_log("EXCEPTION: " + traceback.format_exc())
 
     def finalize(self, job_start, job_end):
 
@@ -227,13 +228,13 @@ class ExperimentDriver(object):
 
     def _start_worker(self):
 
-        util.quick_log('entered _start_worker, experiment_type is: ' + self.experiment_type)
+        # util.quick_log('entered _start_worker, experiment_type is: ' + self.experiment_type)
 
         def _target_function(self):
 
             time_earlystop_check = datetime.now()  # only used by earlystop-supporting experiments
 
-            util.quick_log("inside the thread...")
+            # util.quick_log("inside the thread...")
 
             while not self.worker_done:
                 trial = None
@@ -241,7 +242,7 @@ class ExperimentDriver(object):
                 try:
                     # util.quick_log("worker is not done and  trying to get a message")
                     msg = self._message_q.get_nowait()
-                    util.quick_log("success with the first try clause... msg is" + str(msg))
+                    # util.quick_log("success with the first try clause... msg is" + str(msg))
                 except:
                     msg = {'type': None}
 
@@ -310,7 +311,7 @@ class ExperimentDriver(object):
                     self.maggy_log = self._update_maggy_log()
                     self._log(self.maggy_log)
 
-                    util.quick_log("Finalized trial... before JSON dump")
+                    # util.quick_log("Finalized trial... before JSON dump")
 
                     if self.experiment_type == 'optimization':
                         hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
@@ -332,7 +333,7 @@ class ExperimentDriver(object):
                                 msg['partition_id'], trial.trial_id)
                             self.add_trial(trial)
 
-                            util.quick_log("TRIAL ASSIGNED AFTER PREVIOUS FINALIZATION: " + str(msg))
+                            # util.quick_log("TRIAL ASSIGNED AFTER PREVIOUS FINALIZATION: " + str(msg))
 
                 # 4. REG
                 elif msg['type'] == 'REG':
@@ -349,11 +350,11 @@ class ExperimentDriver(object):
                             self.server.reservations.assign_trial(
                                 msg['partition_id'], trial.trial_id)
                             self.add_trial(trial)
-                            util.quick_log("TRIAL ASSIGNED WITH REGISTRATION: " + str(msg))
+                            # util.quick_log("TRIAL ASSIGNED WITH REGISTRATION: " + str(msg))
 
         t = threading.Thread(target=_target_function, args=(self,))
         t.daemon = True
-        util.quick_log("starting the thread...")
+        # util.quick_log("starting the thread...")
         t.start()
 
     def stop(self):

@@ -58,7 +58,7 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
             # blocking
             # XXX separate suggestion calls for different types?
             trial_id, parameters = client.get_suggestion()
-            util.quick_log('Success in getting suggestion: ' + str(trial_id) + " params:" + str(parameters))
+            # util.quick_log('Success in getting suggestion: ' + str(trial_id) + " params:" + str(parameters))
 
             while not client.done:
 

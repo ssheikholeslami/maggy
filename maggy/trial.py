@@ -32,8 +32,13 @@ class Trial(object):
         if self.trial_type == 'optimization':
             self.trial_id = Trial._generate_id(params)
         elif self.trial_type == 'ablation':
-            serializable_params = {'ablated_feature': params['ablated_feature']}
+            serializable_params = {'ablated_feature': params.get('ablated_feature', None),
+                                   'ablated_layer': params.get('ablated_layer', None),
+                                   }
             self.trial_id = Trial._generate_id(serializable_params)
+
+            params.pop('ablated_feature', None)
+            params.pop('ablated_layer', None)
         self.params = params
         self.status = Trial.PENDING
         self.early_stop = False
@@ -41,7 +46,7 @@ class Trial(object):
         self.metric_history = []
         self.start = None
         self.duration = None
-        util.quick_log("TRIAL INITIALIZED: " + str(self.trial_id) + str(self.params))
+        # util.quick_log("TRIAL INITIALIZED: " + str(self.trial_id) + str(self.params))
         self.lock = threading.RLock()
 
     def get_early_stop(self):
