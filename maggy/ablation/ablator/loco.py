@@ -15,7 +15,6 @@ class LOCO(AbstractAblator):
         self.base_dataset_generator = self.get_dataset_generator(ablated_feature=None)
 
     def get_number_of_trials(self):
-        feature_ablation_trials = len(self.ablation_study.included_features)
         return len(self.ablation_study.features.included_features) + \
             len(self.ablation_study.model.layers.included_layers)
 
