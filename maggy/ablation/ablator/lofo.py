@@ -112,4 +112,4 @@ class LOFO(AbstractAblator):
             return None
 
     def finalize_experiment(self, trials):
-        pass
+        return

@@ -174,6 +174,8 @@ class ExperimentDriver(object):
         self.server = rpc.Server(self.num_executors)
         self._secret = self._generate_secret(ExperimentDriver.SECRET_BYTES)
         self.job_start = datetime.now()
+        self.job_end = 0
+        self.duration = 0
         self.executor_logs = ''
         self.maggy_log = ''
         self.log_lock = threading.RLock()
@@ -202,21 +204,38 @@ class ExperimentDriver(object):
 
     def finalize(self, job_start, job_end):
 
-        _ = self.optimizer.finalize_experiment(self._final_store)
-
-        self.job_end = datetime.now()
-
-        self.duration = hopsutil._time_diff(self.job_start, self.job_end)
+        results = ''
 
         if self.experiment_type == 'optimization':
-            results = '\n------ ' + str(self.optimizer.__class__.__name__) + ' results ------ direction(' + self.direction + ') \n' \
+
+            _ = self.optimizer.finalize_experiment(self._final_store)
+
+            self.job_end = datetime.now()
+
+            self.duration = hopsutil._time_diff(self.job_start, self.job_end)
+
+            results = '\n------ ' + str(self.optimizer.__class__.__name__) + ' Results ------ direction(' + self.direction + ') \n' \
                 'BEST combination ' + json.dumps(self.result['best_hp']) + ' -- metric ' + str(self.result['best_val']) + '\n' \
                 'WORST combination ' + json.dumps(self.result['worst_hp']) + ' -- metric ' + str(self.result['worst_val']) + '\n' \
                 'AVERAGE metric -- ' + str(self.result['avg']) + '\n' \
                 'EARLY STOPPED Trials -- ' + str(self.result['early_stopped']) + '\n' \
-                'Total job time ' + self.duration + '\n'
-            print(results)
+                'Total Job Time ' + self.duration + '\n'
 
+        elif self.experiment_type == 'ablation':
+
+            _ = self.ablator.finalize_experiment(self._final_store)
+            self.job_end = datetime.now()
+            self.duration = hopsutil._time_diff(self.job_start, self.job_end)
+
+            results = "\n------ " + str(self.ablator.__class__.__name__) + " Results ------ \n" + \
+                "BEST Config Excludes " + json.dumps(self.result['best_config']) + " -- metric " + \
+                      str(self.result['best_val']) + "\n" + \
+                "WORST Config Excludes " + json.dumps(self.result['worst_config']) + " -- metric " + \
+                      str(self.result['worst_val']) + "\n" + \
+                "AVERAGE metric -- " + str(self.result['avg']) + "\n" + \
+                "Total Job Time " + self.duration + "\n"
+
+        print(results)
 
         self._log(results)
 
@@ -500,9 +519,6 @@ class ExperimentDriver(object):
 
         if trial.early_stop:
             self.result['early_stopped'] += 1
-
-
-
 
     def _update_maggy_log(self):
         """Creates the status of a maggy experiment with a progress bar.
