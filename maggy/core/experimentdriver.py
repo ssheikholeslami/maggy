@@ -15,7 +15,7 @@ from maggy.trial import Trial
 from maggy.earlystop import AbstractEarlyStop, MedianStoppingRule, NoStoppingRule
 from maggy.searchspace import Searchspace
 
-from maggy.ablation.ablator import AbstractAblator, LOFO
+from maggy.ablation.ablator import AbstractAblator, LOCO
 from maggy.ablation.ablationstudy import AblationStudy
 
 from hops import constants as hopsconstants
@@ -137,14 +137,14 @@ class ExperimentDriver(object):
 
             ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
-                if ablator.lower() == 'lofo':
-                    self.ablator = LOFO(ablation_study, self._final_store)
+                if ablator.lower() == 'loco':
+                    self.ablator = LOCO(ablation_study, self._final_store)
                     self.num_trials = self.ablator.get_number_of_trials()
                     if self.num_executors > self.num_trials:
                         self.num_executors = self.num_trials
                 else:
                     raise Exception(
-                        "The experiment's ablation study policy should either be string ('lofo') "
+                        "The experiment's ablation study policy should either be string ('loco') "
                         "or a custom policy that is an instance of maggy.ablation.ablation.AbstractAblator, "
                         "but it is {0} (of type '{1}')."
                         .format(str(ablator), type(ablator).__name__))
@@ -153,7 +153,7 @@ class ExperimentDriver(object):
                 print("Custom Ablator initialized. \n")
             else:
                 raise Exception(
-                    "The experiment's ablation study policy should either be string ('lofo') "
+                    "The experiment's ablation study policy should either be string ('loco') "
                     "or a custom policy that is an instance of maggy.ablation.ablation.AbstractAblator, "
                     "but it is {0} (of type '{1}')."
                     .format(str(ablator), type(ablator).__name__))

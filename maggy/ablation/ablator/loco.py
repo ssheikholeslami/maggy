@@ -8,15 +8,16 @@ import json
 from datetime import datetime
 
 
-class LOFO(AbstractAblator):
+class LOCO(AbstractAblator):
 
     def __init__(self, ablation_study, final_store):
         super().__init__(ablation_study, final_store)
+        self.base_dataset_generator = self.get_dataset_generator(ablated_feature=None)
 
     def get_number_of_trials(self):
         return len(self.ablation_study.features.included_features)
 
-    def get_dataset_generator(self, ablated_feature, dataset_type='tfrecord'):
+    def get_dataset_generator(self, ablated_feature=None, dataset_type='tfrecord'):
         """
         Create and return a dataset generator function based on the ablation policy to be used in a trial.
         The returned function will be executed on the executor per each trial.
@@ -35,7 +36,6 @@ class LOFO(AbstractAblator):
             training_dataset_name = self.ablation_study.hops_training_dataset_name
             training_dataset_version = self.ablation_study.hops_training_dataset_version
             label_name = self.ablation_study.label_name
-            # TODO return first trial with a dataset generator containing all features (the base)
 
             def create_tf_dataset(num_epochs, batch_size):
                 # TODO @Moritz: go with shadowing? i.e., def create_tf_dataset(ablated_feature)?
@@ -51,7 +51,10 @@ class LOFO(AbstractAblator):
                                      in meta.training_datasets[training_dataset_name +
                                                                '_'
                                                                + str(training_dataset_version)].features]
-                training_features.remove(ablated_feature)
+
+                if ablated_feature is not None:
+                    training_features.remove(ablated_feature)
+
                 training_features.remove(label_name)
 
                 def decode(example_proto):
@@ -89,21 +92,23 @@ class LOFO(AbstractAblator):
 
     def initialize(self):
         """
-        Prepares all the trials for LOFO policy. Trials will consist of `n` dataset generator callables,
-        where `n` is equal to the number of features that are included in the ablation study (i.e. the features that
-        will be removed one-at-a-time).
+        Prepares all the trials for LOCO policy (Leave One Component Out).
+        In total `n+1` trials will be generated where `n` is equal to the number of components
+        (e.g. features and layers) that are included in the ablation study
+        (i.e. the components that will be removed one-at-a-time). The first trial will include all the components and
+        can be regarded as the base for comparison.
         """
 
+        # add first trial with all the components
+
+        self.trial_buffer.append(Trial(self.create_trial_dict(None, None), trial_type='ablation'))
+
+        # generate remaining trials based on the ablation study configuration
         for feature in self.ablation_study.features.included_features:
-            trial_dict = {'dataset_function': self.get_dataset_generator(ablated_feature=feature),
-                          'model_function': self.ablation_study.model.base_model_generator,
-                          'ablated_feature': feature,
-                          'ablated_layer': "None",
-                          }
-            # TODO temporary fix for json serialization
-            # since this is LOFO, not LOLO or LOMO :D
-            # model_function = self.get_model_generator()  # TODO check this later
-            self.trial_buffer.append(Trial(trial_dict, trial_type='ablation'))
+            self.trial_buffer.append(Trial(self.create_trial_dict(ablated_feature=feature), trial_type='ablation'))
+
+        for layer in self.ablation_study.model.layers.included_layers:
+            self.trial_buffer.append(Trial(self.create_trial_dict(ablated_layer=layer), trial_type='ablation'))
 
     def get_trial(self, trial=None):
         if self.trial_buffer:
@@ -113,3 +118,30 @@ class LOFO(AbstractAblator):
 
     def finalize_experiment(self, trials):
         return
+
+    def create_trial_dict(self, ablated_feature=None, ablated_layer=None):
+        """
+        Creates a trial dictionary that can be used for creating a Trial instance.
+
+        :param ablated_feature: a string representing the name of a feature, or None
+        :param ablated_layer: a string representing the name of a layer, or None
+        :return: A trial dictionary that can be passed to maggy.Trial() constructor
+        :rtype: dict
+        """
+
+        trial_dict = {}
+        if ablated_feature is None:
+            trial_dict['dataset_function'] = self.base_dataset_generator
+            trial_dict['ablated_feature'] = 'None'
+        else:
+            trial_dict['dataset_function'] = self.get_dataset_generator(ablated_feature, dataset_type='tfrecord')
+            trial_dict['ablated_feature'] = ablated_feature
+
+        if ablated_layer is None:
+            trial_dict['model_function'] = self.ablation_study.model.base_model_generator
+            trial_dict['ablated_layer'] = 'None'
+        else:
+            trial_dict['model_function'] = self.get_model_generator(ablated_layer)
+            trial_dict['ablated_layer'] = ablated_layer
+
+        return trial_dict
