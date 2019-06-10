@@ -97,7 +97,10 @@ class LOFO(AbstractAblator):
         for feature in self.ablation_study.features.included_features:
             trial_dict = {'dataset_function': self.get_dataset_generator(ablated_feature=feature),
                           'model_function': self.ablation_study.model.base_model_generator,
-                          'ablated_feature': feature} # TODO temporary fix for json serialization
+                          'ablated_feature': feature,
+                          'ablated_layer': "None",
+                          }
+            # TODO temporary fix for json serialization
             # since this is LOFO, not LOLO or LOMO :D
             # model_function = self.get_model_generator()  # TODO check this later
             self.trial_buffer.append(Trial(trial_dict, trial_type='ablation'))

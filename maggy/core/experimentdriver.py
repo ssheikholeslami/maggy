@@ -216,7 +216,7 @@ class ExperimentDriver(object):
                 'EARLY STOPPED Trials -- ' + str(self.result['early_stopped']) + '\n' \
                 'Total job time ' + self.duration + '\n'
             print(results)
-        
+
 
         self._log(results)
 
@@ -428,43 +428,71 @@ class ExperimentDriver(object):
         """
 
         metric = trial.final_metric
-        param_string = trial.params
+        parameters = trial.params
         trial_id = trial.trial_id
 
-        # First finalized trial
-        if self.result.get('best_id', None) is None:
-            self.result = {'best_id': trial_id, 'best_val': metric,
-                'best_hp': param_string, 'worst_id': trial_id,
-                'worst_val': metric, 'worst_hp': param_string,
-                'avg': metric, 'metric_list': [metric], 'num_trials': 1,
-                'early_stopped': 0}
+        if self.experiment_type == 'optimization':
+            # First finalized trial
+            if self.result.get('best_id', None) is None:
+                self.result = {
+                    'best_id': trial_id, 'best_val': metric,
+                    'best_hp': parameters, 'worst_id': trial_id,
+                    'worst_val': metric, 'worst_hp': parameters,
+                    'avg': metric, 'metric_list': [metric], 'num_trials': 1,
+                    'early_stopped': 0,
+                }
 
+                if trial.early_stop:
+                    self.result['early_stopped'] += 1
 
-            if trial.early_stop:
-                self.result['early_stopped'] += 1
+                return
 
-            return
-        # TODO handle for ablation
-        if self.direction == 'max':
+            if self.direction == 'max':
+                if metric > self.result['best_val']:
+                    self.result['best_val'] = metric
+                    self.result['best_id'] = trial_id
+                    self.result['best_hp'] = parameters
+                if metric < self.result['worst_val']:
+                    self.result['worst_val'] = metric
+                    self.result['worst_id'] = trial_id
+                    self.result['worst_hp'] = parameters
+            elif self.direction == 'min':
+                if metric < self.result['best_val']:
+                    self.result['best_val'] = metric
+                    self.result['best_id'] = trial_id
+                    self.result['best_hp'] = parameters
+                if metric > self.result['worst_val']:
+                    self.result['worst_val'] = metric
+                    self.result['worst_id'] = trial_id
+                    self.result['worst_hp'] = parameters
+
+        elif self.experiment_type == 'ablation':
+
+            # pop function values and trial_type from parameters, since we don't need them
+            parameters.pop('dataset_function', None)
+            parameters.pop('model_function', None)
+            # First finalized trial
+            if self.result.get('best_id', None) is None:
+                self.result = {
+                    'best_id': trial_id, 'best_val': metric, 'best_config': parameters,
+                    'worst_id': trial_id, 'worst_val': metric, 'worst_config': parameters,
+                    'avg': metric, 'metric_list': [metric], 'num_trials': 1,
+                    'early_stopped': 0,
+                    # TODO earlystop included temporarily for compatibility with sparkmagic, remove before release
+                }
+                return
+
+            # for ablation we always consider 'max' as "the direction"
             if metric > self.result['best_val']:
-                self.result['best_val'] = metric
                 self.result['best_id'] = trial_id
-                self.result['best_hp'] = param_string
-            if metric < self.result['worst_val']:
-                self.result['worst_val'] = metric
-                self.result['worst_id'] = trial_id
-                self.result['worst_hp'] = param_string
-        elif self.direction == 'min':
-            if metric < self.result['best_val']:
                 self.result['best_val'] = metric
-                self.result['best_id'] = trial_id
-                self.result['best_hp'] = param_string
-            if metric > self.result['worst_val']:
-                self.result['worst_val'] = metric
+                self.result['best_config'] = parameters
+            elif metric < self.result['worst_val']:
                 self.result['worst_id'] = trial_id
-                self.result['worst_hp'] = param_string
+                self.result['worst_val'] = metric
+                self.result['worst_config'] = parameters
 
-        # update average
+        # update results and average regardless of experiment type
         self.result['metric_list'].append(metric)
         self.result['num_trials'] += 1
         self.result['avg'] = sum(self.result['metric_list'])/float(
@@ -472,6 +500,9 @@ class ExperimentDriver(object):
 
         if trial.early_stop:
             self.result['early_stopped'] += 1
+
+
+
 
     def _update_maggy_log(self):
         """Creates the status of a maggy experiment with a progress bar.

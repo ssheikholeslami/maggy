@@ -61,11 +61,9 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
             # util.quick_log('Success in getting suggestion: ' + str(trial_id) + " params:" + str(parameters))
 
             while not client.done:
-
-                if parameters.get('trial_type', None) == 'ablation':
-                    parameters.pop('ablated_feature', None)
-                    parameters.pop('ablated_layer', None)
-                    parameters.pop('trial_type')
+                if experiment_type == 'ablation':
+                    parameters.pop('ablated_feature')
+                    parameters.pop('ablated_layer')
 
                 reporter.set_trial_id(trial_id)
 
