@@ -194,13 +194,11 @@ class ExperimentDriver(object):
             self.optimizer.initialize()
         elif self.experiment_type == 'ablation':
             self.ablator.initialize()
-            # util.quick_log("INITIALIZED ABLATION!")
 
         try:
             self._start_worker()
         except Exception as e:
             raise
-            #util.quick_log("EXCEPTION: " + traceback.format_exc())
 
     def finalize(self, job_start, job_end):
 
@@ -210,14 +208,15 @@ class ExperimentDriver(object):
 
         self.duration = hopsutil._time_diff(self.job_start, self.job_end)
 
-
-        results = '\n------ ' + str(self.optimizer.__class__.__name__) + ' results ------ direction(' + self.direction + ') \n' \
-            'BEST combination ' + json.dumps(self.result['best_hp']) + ' -- metric ' + str(self.result['best_val']) + '\n' \
-            'WORST combination ' + json.dumps(self.result['worst_hp']) + ' -- metric ' + str(self.result['worst_val']) + '\n' \
-            'AVERAGE metric -- ' + str(self.result['avg']) + '\n' \
-            'EARLY STOPPED Trials -- ' + str(self.result['early_stopped']) + '\n' \
-            'Total job time ' + self.duration + '\n'
-        print(results)
+        if self.experiment_type == 'optimization':
+            results = '\n------ ' + str(self.optimizer.__class__.__name__) + ' results ------ direction(' + self.direction + ') \n' \
+                'BEST combination ' + json.dumps(self.result['best_hp']) + ' -- metric ' + str(self.result['best_val']) + '\n' \
+                'WORST combination ' + json.dumps(self.result['worst_hp']) + ' -- metric ' + str(self.result['worst_val']) + '\n' \
+                'AVERAGE metric -- ' + str(self.result['avg']) + '\n' \
+                'EARLY STOPPED Trials -- ' + str(self.result['early_stopped']) + '\n' \
+                'Total job time ' + self.duration + '\n'
+            print(results)
+        
 
         self._log(results)
 
@@ -439,6 +438,7 @@ class ExperimentDriver(object):
                 'worst_val': metric, 'worst_hp': param_string,
                 'avg': metric, 'metric_list': [metric], 'num_trials': 1,
                 'early_stopped': 0}
+
 
             if trial.early_stop:
                 self.result['early_stopped'] += 1

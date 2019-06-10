@@ -36,6 +36,7 @@ class Trial(object):
                                    'ablated_layer': params.get('ablated_layer', None),
                                    'trial_type': 'ablation'
                                    }
+            params['trial_type'] = 'ablation'
             self.trial_id = Trial._generate_id(serializable_params)
         self.params = params
         self.status = Trial.PENDING
