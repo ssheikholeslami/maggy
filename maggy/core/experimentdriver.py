@@ -524,12 +524,20 @@ class ExperimentDriver(object):
         """Creates the status of a maggy experiment with a progress bar.
         """
         finished = self.result['num_trials']
+        log = ''
 
-        log = 'Maggy ' + str(finished) + '/' + str(self.num_trials) + \
-            ' (' + str(self.result['early_stopped']) + ') ' + \
-            util._progress_bar(finished, self.num_trials) + ' - BEST ' + \
-            json.dumps(self.result['best_hp']) + ' - metric ' + \
-            str(self.result['best_val'])
+        if self.experiment_type == 'optimization':
+            log = 'Maggy ' + str(finished) + '/' + str(self.num_trials) + \
+                ' (' + str(self.result['early_stopped']) + ') ' + \
+                util._progress_bar(finished, self.num_trials) + ' - BEST ' + \
+                json.dumps(self.result['best_hp']) + ' - metric ' + \
+                str(self.result['best_val'])
+
+        elif self.experiment_type == 'ablation':
+            log = "Maggy Ablation Study " + str(finished) + "/" + str(self.num_trials) + \
+                util._progress_bar(finished, self.num_trials) + ' - BEST Excludes' + \
+                json.dumps(self.result['best_config']) + ' - metric ' + \
+                str(self.result['best_val'])
 
         return log
 
