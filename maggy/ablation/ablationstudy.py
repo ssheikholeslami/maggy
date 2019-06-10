@@ -9,6 +9,24 @@ class AblationStudy(object):
         self.label_name = label_name
         self.custom_dataset_generator = kwargs.get('dataset_generator', False)
 
+    def to_dict(self):
+        """
+        Returns the ablation study configuration as a Python dictionary.
+        :return: A dictionary with ablation study configuration parameters as keys
+        (i.e. 'training_dataset_name', 'included_features', etc.)
+        :rtype: dict
+        """
+        ablation_dict = {
+            'training_dataset_name': self.hops_training_dataset_name,
+            'training_dataset_version': self.hops_training_dataset_version,
+            'label_name': self.label_name,
+            'included_features': dict.fromkeys(self.features.included_features, 'None'),
+            'included_layers': dict.fromkeys(self.model.layers.included_layers, 'None'),
+            'custom_dataset_generator': True if self.custom_dataset_generator else False,
+        }
+
+        return ablation_dict
+
 
 class Features(object):
     # TODO type-checking for all the methods

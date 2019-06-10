@@ -14,6 +14,7 @@ from maggy.core import rpc
 from maggy.trial import Trial
 from maggy.earlystop import AbstractEarlyStop, MedianStoppingRule, NoStoppingRule
 from maggy.searchspace import Searchspace
+
 from maggy.ablation.ablator import AbstractAblator, LOFO
 from maggy.ablation.ablationstudy import AblationStudy
 
@@ -124,7 +125,16 @@ class ExperimentDriver(object):
         elif self.experiment_type == 'ablation':
             # set up an ablation study experiment
             self.earlystop_check = NoStoppingRule.earlystop_check
+
             ablation_study = kwargs.get('ablation_study')
+            if isinstance(ablation_study, AblationStudy):
+                self.ablation_study = ablation_study
+            else:
+                raise Exception(
+                    "The experiment's ablation study configuration should be an instance of maggy.ablation.AblationStudy, "
+                    "but it is {0} (of type '{1}')."
+                    .format(str(ablation_study), type(ablation_study).__name__))
+
             ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
             if isinstance(ablator, str):
                 if ablator.lower() == 'lofo':
@@ -371,7 +381,8 @@ class ExperimentDriver(object):
         if hopsconstants.ENV_VARIABLES.HOPSWORKS_USER_ENV_VAR in os.environ:
             user = os.environ[hopsconstants.ENV_VARIABLES.HOPSWORKS_USER_ENV_VAR]
 
-        experiment_json = {'project': hopshdfs.project_name(),
+        experiment_json = {
+            'project': hopshdfs.project_name(),
             'user': user,
             'name': self.name,
             'module': 'maggy',
@@ -382,10 +393,16 @@ class ExperimentDriver(object):
             'executors': self.num_executors,
             'logdir': self.trial_dir,
             # 'versioned_resources': versioned_resources,
-            'description': self.description}
+            'description': self.description,
+            'experiment_type': self.experiment_type,
+        }
+
         if self.experiment_type == 'optimization':
             experiment_json['hyperparameter_space'] = json.dumps(self.searchspace.to_dict())
-            experiment_json['function'] = self.optimizer.__class__.__name__,
+            experiment_json['optimizer'] = self.optimizer.__class__.__name__,
+        elif self.experiment_type == 'ablation':
+            experiment_json['ablation_study'] = json.dumps(self.ablation_study.to_dict())
+            experiment_json['ablator'] = self.ablation_study.__class__.__name__,
 
         if self.experiment_done:
             experiment_json['status'] = "FINISHED"
