@@ -17,7 +17,8 @@ class LOCO(AbstractAblator):
     def get_number_of_trials(self):
         # plus one is because of the base trial with all the components
         return len(self.ablation_study.features.included_features) + \
-            len(self.ablation_study.model.layers.included_layers) + 1
+            len(self.ablation_study.model.layers.included_layers) +  \
+            len(self.ablation_study.model.layers.included_groups) + 1
 
     def get_dataset_generator(self, ablated_feature=None, dataset_type='tfrecord'):
         """
@@ -137,7 +138,6 @@ class LOCO(AbstractAblator):
         # each element of `included_groups` is a frozenset of a set
         for layer_group in self.ablation_study.model.layers.included_groups:
             self.trial_buffer.append(Trial(self.create_trial_dict(layer_identifier=set(layer_group)), trial_type='ablation'))
-
 
     def get_trial(self, trial=None):
         if self.trial_buffer:
