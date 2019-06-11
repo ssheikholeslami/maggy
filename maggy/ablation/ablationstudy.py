@@ -84,6 +84,7 @@ class Model(object):
 class Layers(object):
     def __init__(self):
         self.included_layers = set()
+        self.included_groups = set()
 
     def include(self, *args):
         for arg in args:
@@ -119,12 +120,65 @@ class Layers(object):
                              "but it received {0} (of type '{1}')."
                              .format(str(layer), type(layer).__name__))
 
-    def include_layer_group(self, prefix):
-        pass
+    def include_groups(self, *args):
+        """
+        Adds a group of layers that should be removed from the model together. The groups are specified either
+        by being passed as a list of layers, or with a string as a common prefix of their layer names.
+        :param args: Strings that should be a common prefix of the name of all the layers in the desired group, or lists
+        of strings (as layer names) to indicate groups of layers.
+        :type args: str or list
+        """
+        for arg in args:
+            if type(arg) is list:
+                self.included_groups.add(frozenset(arg))
+            elif type(arg) is str:
+                self.included_groups.add(arg)
+            else:
+                raise ValueError("layers.include_groups() only accepts strings or lists of strings, "
+                                 "but it received {0} (of type '{1}')."
+                                 .format(str(arg), type(arg).__name__))
 
-    def exclude_layer_group(self, prefix):
-        pass
+    def exclude_groups(self, *args):
+        """
+        Removes a group of layers from being included in the ablation study. The groups are specified
+        either by being passed as a set of layers, or with a string as a common prefix of their layer names.
+        :param args: Strings that should be a common prefix of the name of all the layers in the desired group, or sets
+        of strings (of layer names) to indicate groups of layers.
+        :type args: str or list
+        """
+        for arg in args:
+            if type(arg) is list:
+                if frozenset(arg) in self.included_groups:
+                    self.included_groups.remove(frozenset(arg))
+            elif type(arg) is str:
+                if arg in self.included_groups:
+                    self.included_groups.remove(arg)
+            else:
+                raise ValueError("layers.exclude_groups() only accepts strings or lists of strings, "
+                                 "but it received {0} (of type '{1}')."
+                                 .format(str(arg), type(arg).__name__))
 
-    def list_all(self):
-        for layer in self.included_layers:
-            print(layer)  # TODO proper printing
+    def print_all(self):
+        """
+        Prints all single layers that are included in the current ablation study configuration.
+        """
+        if len(self.included_layers) > 0:
+            print("Included single layers are: \n")  # TODO proper printing
+            for layer in self.included_layers:
+                print(layer)
+        else:
+            print("There are no single layers in this ablation study configuration.")
+
+    def print_all_groups(self):
+        """
+        Prints all layer groups that are included in the current ablation study configuration.
+        """
+        if len(self.included_groups) > 0:
+            print("Included layer groups are: \n")  # TODO proper printing
+            for layer_group in self.included_groups:
+                if type(layer_group) is frozenset:
+                    print("--- " + str(list(layer_group)))
+                elif type(layer_group) is str:
+                    print('---- All layers prefixed "' + layer_group + '"')
+        else:
+            print("There are no layer groups in this ablation study configuration.")
