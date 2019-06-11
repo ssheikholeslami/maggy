@@ -86,20 +86,20 @@ class LOCO(AbstractAblator):
             list_of_layers = [base_layer for base_layer in base_model.get_config()['layers']]
             if type(layer_identifier) is str:
                 # ablation of a single layer
-                for base_layer in list_of_layers:
+                for base_layer in reversed(list_of_layers):
                     if base_layer['config']['name'] == layer_identifier:
                         list_of_layers.remove(base_layer)
-            elif type(layer_identifier) is frozenset:
+            elif type(layer_identifier) is set:
                 # ablation of a layer group - all the layers in the group should be removed together
                 if len(layer_identifier) > 1:
                     # group of layers (non-prefix)
-                    for base_layer in list_of_layers:
+                    for base_layer in reversed(list_of_layers):
                         if base_layer['config']['name'] in layer_identifier:
                             list_of_layers.remove(base_layer)
                 elif len(layer_identifier) == 1:
                     # layer_identifier is a prefix
                     prefix = list(layer_identifier)[0].lower()
-                    for base_layer in list_of_layers:
+                    for base_layer in reversed(list_of_layers):
                         if base_layer['config']['name'].lower().startswith(prefix):
                             list_of_layers.remove(base_layer)
 
@@ -135,7 +135,10 @@ class LOCO(AbstractAblator):
             self.trial_buffer.append(Trial(self.create_trial_dict(layer_identifier=layer), trial_type='ablation'))
 
         # generate layer groups ablation trials
-        # each element of `included_groups` is a frozenset of a set
+        # each element of `included_groups` is a frozenset of a set, so we cast again to get a set
+        # why frozensets in the first place? because a set can only contain immutable elements
+        # hence elements (layer group identifiers) are frozensets
+
         for layer_group in self.ablation_study.model.layers.included_groups:
             self.trial_buffer.append(Trial(self.create_trial_dict(layer_identifier=set(layer_group)), trial_type='ablation'))
 
@@ -176,7 +179,7 @@ class LOCO(AbstractAblator):
             trial_dict['model_function'] = self.get_model_generator(layer_identifier=layer_identifier)
             if type(layer_identifier) is str:
                 trial_dict['ablated_layer'] = layer_identifier
-            elif type(layer_identifier) is frozenset:
+            elif type(layer_identifier) is set:
                 if len(layer_identifier) > 1:
                     trial_dict['ablated_layer'] = str(list(layer_identifier))
                 elif len(layer_identifier) == 1:
