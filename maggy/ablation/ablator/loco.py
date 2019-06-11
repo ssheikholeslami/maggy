@@ -39,37 +39,39 @@ class LOCO(AbstractAblator):
             training_dataset_version = self.ablation_study.hops_training_dataset_version
             label_name = self.ablation_study.label_name
 
-            def create_tf_dataset(num_epochs, batch_size):
-                # TODO @Moritz: go with shadowing? i.e., def create_tf_dataset(ablated_feature)?
-                SHUFFLE_BUFFER_SIZE = 10000  # XXX parametrize?
-                dataset_dir = featurestore.get_training_dataset_path(training_dataset_name,
-                                                                     training_dataset_version)
-                input_files = tf.gfile.Glob(dataset_dir + '/part-r-*')
-                dataset = tf.data.TFRecordDataset(input_files)
-                tf_record_schema = featurestore.get_training_dataset_tf_record_schema(training_dataset_name)
-                meta = featurestore.get_featurestore_metadata()  # XXX move outside the function?
-                training_features = [feature.name
-                                     for feature
-                                     in meta.training_datasets[training_dataset_name +
-                                                               '_'
-                                                               + str(training_dataset_version)].features]
+            if dataset_type == 'tfrecord':
 
-                if ablated_feature is not None:
-                    training_features.remove(ablated_feature)
+                def create_tf_dataset(num_epochs, batch_size):
+                    # TODO @Moritz: go with shadowing? i.e., def create_tf_dataset(ablated_feature)?
+                    SHUFFLE_BUFFER_SIZE = 10000  # XXX parametrize?
+                    dataset_dir = featurestore.get_training_dataset_path(training_dataset_name,
+                                                                         training_dataset_version)
+                    input_files = tf.gfile.Glob(dataset_dir + '/part-r-*')
+                    dataset = tf.data.TFRecordDataset(input_files)
+                    tf_record_schema = featurestore.get_training_dataset_tf_record_schema(training_dataset_name)
+                    meta = featurestore.get_featurestore_metadata()  # XXX move outside the function?
+                    training_features = [feature.name
+                                         for feature
+                                         in meta.training_datasets[training_dataset_name +
+                                                                   '_'
+                                                                   + str(training_dataset_version)].features]
 
-                training_features.remove(label_name)
+                    if ablated_feature is not None:
+                        training_features.remove(ablated_feature)
 
-                def decode(example_proto):
-                    example = tf.parse_single_example(example_proto, tf_record_schema)
-                    x = []
-                    for feature_name in training_features:
-                        x.append(tf.cast(example[feature_name], tf.float32))  # XXX parametrize tf.dtype?
-                    y = [tf.cast(example[label_name], tf.float32)]
-                    return x, y
-                dataset = dataset.map(decode).shuffle(SHUFFLE_BUFFER_SIZE).batch(batch_size).repeat(num_epochs)
-                return dataset
+                    training_features.remove(label_name)
 
-            return create_tf_dataset
+                    def decode(example_proto):
+                        example = tf.parse_single_example(example_proto, tf_record_schema)
+                        x = []
+                        for feature_name in training_features:
+                            x.append(tf.cast(example[feature_name], tf.float32))  # XXX parametrize tf.dtype?
+                        y = [tf.cast(example[label_name], tf.float32)]
+                        return x, y
+                    dataset = dataset.map(decode).shuffle(SHUFFLE_BUFFER_SIZE).batch(batch_size).repeat(num_epochs)
+                    return dataset
+
+                return create_tf_dataset
 
     def get_model_generator(self, ablated_layer=None):
 
