@@ -73,17 +73,34 @@ class LOCO(AbstractAblator):
 
                 return create_tf_dataset
 
-    def get_model_generator(self, ablated_layer=None):
+    def get_model_generator(self, layer_identifier=None):
 
         base_model_generator = self.ablation_study.model.base_model_generator
+        if layer_identifier is None:
+            return base_model_generator
 
         def model_generator():
             base_model = base_model_generator()
 
-            list_of_layers = [layer for layer in base_model.get_config()['layers']]
-            for layer in list_of_layers:
-                if layer['config']['name'] == ablated_layer:
-                    list_of_layers.remove(layer)
+            list_of_layers = [base_layer for base_layer in base_model.get_config()['layers']]
+            if type(layer_identifier) is str:
+                # ablation of a single layer
+                for base_layer in list_of_layers:
+                    if base_layer['config']['name'] == layer_identifier:
+                        list_of_layers.remove(base_layer)
+            elif type(layer_identifier) is frozenset:
+                # ablation of a layer group - all the layers in the group should be removed together
+                if len(layer_identifier) > 1:
+                    # group of layers (non-prefix)
+                    for base_layer in list_of_layers:
+                        if base_layer['config']['name'] in layer_identifier:
+                            list_of_layers.remove(base_layer)
+                elif len(layer_identifier) == 1:
+                    # layer_identifier is a prefix
+                    prefix = list(layer_identifier)[0].lower()
+                    for base_layer in list_of_layers:
+                        if base_layer['config']['name'].lower().startswith(prefix):
+                            list_of_layers.remove(base_layer)
 
             base_json = base_model.to_json()  # TODO support YAML and maybe custom serializers
             new_dict = json.loads(base_json)
@@ -104,15 +121,23 @@ class LOCO(AbstractAblator):
         """
 
         # add first trial with all the components
-
         self.trial_buffer.append(Trial(self.create_trial_dict(None, None), trial_type='ablation'))
 
         # generate remaining trials based on the ablation study configuration
+
+        # generate feature ablation trials
         for feature in self.ablation_study.features.included_features:
             self.trial_buffer.append(Trial(self.create_trial_dict(ablated_feature=feature), trial_type='ablation'))
 
+        # generate single-layer ablation trials
         for layer in self.ablation_study.model.layers.included_layers:
-            self.trial_buffer.append(Trial(self.create_trial_dict(ablated_layer=layer), trial_type='ablation'))
+            self.trial_buffer.append(Trial(self.create_trial_dict(layer_identifier=layer), trial_type='ablation'))
+
+        # generate layer groups ablation trials
+        # each element of `included_groups` is a frozenset of a set
+        for layer_group in self.ablation_study.model.layers.included_groups:
+            self.trial_buffer.append(Trial(self.create_trial_dict(layer_identifier=set(layer_group)), trial_type='ablation'))
+
 
     def get_trial(self, trial=None):
         if self.trial_buffer:
@@ -123,13 +148,16 @@ class LOCO(AbstractAblator):
     def finalize_experiment(self, trials):
         return
 
-    def create_trial_dict(self, ablated_feature=None, ablated_layer=None):
+    def create_trial_dict(self, ablated_feature=None, layer_identifier=None):
         """
         Creates a trial dictionary that can be used for creating a Trial instance.
 
         :param ablated_feature: a string representing the name of a feature, or None
-        :param ablated_layer: a string representing the name of a layer, or None
-        :return: A trial dictionary that can be passed to maggy.Trial() constructor
+        :param layer_identifier: A string representing the name of a single layer, or a set representing a layer group.
+        If the set has only one element, it is regarded as a prefix, so all layers with that prefix in their names
+        would be regarded as a layer group. Otherwise, if the set has more than one element, the layers with
+        names corresponding to those elements would be regarded as a layer group.
+        :return: A trial dictionary that can be passed to maggy.Trial() constructor.
         :rtype: dict
         """
 
@@ -141,11 +169,17 @@ class LOCO(AbstractAblator):
             trial_dict['dataset_function'] = self.get_dataset_generator(ablated_feature, dataset_type='tfrecord')
             trial_dict['ablated_feature'] = ablated_feature
 
-        if ablated_layer is None:
+        if layer_identifier is None:
             trial_dict['model_function'] = self.ablation_study.model.base_model_generator
             trial_dict['ablated_layer'] = 'None'
         else:
-            trial_dict['model_function'] = self.get_model_generator(ablated_layer)
-            trial_dict['ablated_layer'] = ablated_layer
+            trial_dict['model_function'] = self.get_model_generator(layer_identifier=layer_identifier)
+            if type(layer_identifier) is str:
+                trial_dict['ablated_layer'] = layer_identifier
+            elif type(layer_identifier) is frozenset:
+                if len(layer_identifier) > 1:
+                    trial_dict['ablated_layer'] = str(list(layer_identifier))
+                elif len(layer_identifier) == 1:
+                    trial_dict['ablated_layer'] = 'Layers prefixed ' + str(list(layer_identifier)[0])
 
         return trial_dict

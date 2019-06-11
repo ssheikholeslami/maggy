@@ -125,17 +125,19 @@ class Layers(object):
         Adds a group of layers that should be removed from the model together. The groups are specified either
         by being passed as a list of layers, or with a string as a common prefix of their layer names.
         :param args: Strings that should be a common prefix of the name of all the layers in the desired group, or lists
-        of strings (as layer names) to indicate groups of layers.
+        of strings (as layer names) to indicate groups of layers. If a list is being passed, its length must be
+        greater than one.
+
         :type args: str or list
         """
         for arg in args:
-            if type(arg) is list:
+            if type(arg) is list and len(arg) > 1:
                 self.included_groups.add(frozenset(arg))
             elif type(arg) is str:
-                self.included_groups.add(arg)
+                self.included_groups.add(frozenset([arg]))
             else:
-                raise ValueError("layers.include_groups() only accepts strings or lists of strings, "
-                                 "but it received {0} (of type '{1}')."
+                raise ValueError("layers.include_groups() only accepts strings or lists (with more than one element) "
+                                 "of strings, but it received {0} (of type '{1}')."
                                  .format(str(arg), type(arg).__name__))
 
     def exclude_groups(self, *args):
@@ -147,15 +149,15 @@ class Layers(object):
         :type args: str or list
         """
         for arg in args:
-            if type(arg) is list:
+            if type(arg) is list and len(arg) > 1:
                 if frozenset(arg) in self.included_groups:
                     self.included_groups.remove(frozenset(arg))
             elif type(arg) is str:
-                if arg in self.included_groups:
-                    self.included_groups.remove(arg)
+                if frozenset([arg]) in self.included_groups:
+                    self.included_groups.remove(frozenset([arg]))
             else:
-                raise ValueError("layers.exclude_groups() only accepts strings or lists of strings, "
-                                 "but it received {0} (of type '{1}')."
+                raise ValueError("layers.exclude_groups() only accepts strings or lists (with more than one element) "
+                                 "of strings, but it received {0} (of type '{1}')."
                                  .format(str(arg), type(arg).__name__))
 
     def print_all(self):
@@ -176,9 +178,9 @@ class Layers(object):
         if len(self.included_groups) > 0:
             print("Included layer groups are: \n")  # TODO proper printing
             for layer_group in self.included_groups:
-                if type(layer_group) is frozenset:
-                    print("--- " + str(list(layer_group)))
-                elif type(layer_group) is str:
-                    print('---- All layers prefixed "' + layer_group + '"')
+                if len(layer_group) > 1:
+                    print("--- Layer group " + str(list(layer_group)))
+                elif len(layer_group) == 1:
+                    print('---- All layers prefixed "' + str(list(layer_group)[0]) + '"')
         else:
             print("There are no layer groups in this ablation study configuration.")
