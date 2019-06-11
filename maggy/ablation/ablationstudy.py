@@ -20,8 +20,8 @@ class AblationStudy(object):
             'training_dataset_name': self.hops_training_dataset_name,
             'training_dataset_version': self.hops_training_dataset_version,
             'label_name': self.label_name,
-            'included_features': dict.fromkeys(self.features.included_features, 'None'),
-            'included_layers': dict.fromkeys(self.model.layers.included_layers, 'None'),
+            'included_features': list(self.features.included_features),
+            'included_layers': list(self.model.layers.included_layers),
             'custom_dataset_generator': True if self.custom_dataset_generator else False,
         }
 
