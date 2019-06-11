@@ -420,7 +420,7 @@ class ExperimentDriver(object):
             experiment_json['optimizer'] = self.optimizer.__class__.__name__,
         elif self.experiment_type == 'ablation':
             experiment_json['ablation_study'] = json.dumps(self.ablation_study.to_dict())
-            experiment_json['ablator'] = self.ablation_study.__class__.__name__,
+            experiment_json['ablator'] = self.ablator.__class__.__name__,
 
         if self.experiment_done:
             experiment_json['status'] = "FINISHED"

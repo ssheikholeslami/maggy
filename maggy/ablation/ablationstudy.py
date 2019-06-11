@@ -119,6 +119,12 @@ class Layers(object):
                              "but it received {0} (of type '{1}')."
                              .format(str(layer), type(layer).__name__))
 
+    def include_layer_group(self, prefix):
+        pass
+
+    def exclude_layer_group(self, prefix):
+        pass
+
     def list_all(self):
         for layer in self.included_layers:
             print(layer)  # TODO proper printing
