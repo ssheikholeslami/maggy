@@ -120,43 +120,67 @@ class Layers(object):
                              "but it received {0} (of type '{1}')."
                              .format(str(layer), type(layer).__name__))
 
-    def include_groups(self, *args):
+    def include_groups(self, *args, prefix=None):
         """
         Adds a group of layers that should be removed from the model together. The groups are specified either
-        by being passed as a list of layers, or with a string as a common prefix of their layer names.
-        :param args: Strings that should be a common prefix of the name of all the layers in the desired group, or lists
-        of strings (as layer names) to indicate groups of layers. If a list is being passed, its length must be
-        greater than one.
-
-        :type args: str or list
+        by being passed as a list of layer names (strings), or a string as a common prefix of their layer names.
+        Each list of strings would result in a single grouping.
+        :param prefix: A string that is a prefix of the names of a group of layers in the base model.
+        :type prefix: str
+        :param args: Lists of strings (layer names) to indicate groups of layers. The length of the list should be
+        greater than one - it does not make sense to have a group of layers that consists of only one layer.
+        :type args: list
         """
+        if prefix is not None:
+            if type(prefix) is str:
+                self.included_groups.add(frozenset([prefix]))
+            else:
+                raise ValueError("`prefix` argument of layers.include_groups() should either be "
+                                 "a `NoneType` or a `str`, but it received {0} (of type '{1}'."
+                                 .format(str(prefix), type(prefix).__name__))
+
         for arg in args:
             if type(arg) is list and len(arg) > 1:
                 self.included_groups.add(frozenset(arg))
-            elif type(arg) is str:
-                self.included_groups.add(frozenset([arg]))
+            elif type(arg) is list and len(arg) == 1:
+                raise ValueError("layers.include_groups() received a list ( {0} ) "
+                                 "with only one element: Did you want to include a single layer in "
+                                 "your ablation study? then you should use layers.include()."
+                                 .format(str(arg)))
             else:
-                raise ValueError("layers.include_groups() only accepts strings or lists (with more than one element) "
+                raise ValueError("layers.include_groups() only accepts a prefix string, "
+                                 "or lists (with more than one element) "
                                  "of strings, but it received {0} (of type '{1}')."
                                  .format(str(arg), type(arg).__name__))
 
-    def exclude_groups(self, *args):
+    def exclude_groups(self, *args, prefix=None):
         """
         Removes a group of layers from being included in the ablation study. The groups are specified
-        either by being passed as a set of layers, or with a string as a common prefix of their layer names.
-        :param args: Strings that should be a common prefix of the name of all the layers in the desired group, or sets
-        of strings (of layer names) to indicate groups of layers.
-        :type args: str or list
+        either by being passed as a list of layer names, or by passing a `prefix` argument, denoting a prefix shared by
+        all layer names in a group.
+        :param prefix: A string that is a prefix of the names of a group that is already included in the ablation study.
+        :type prefix: str
+        :param args: Lists of strings (layer names) that correspond to groups that are already
+        included in the ablation study.
+        :type args: list
         """
+
+        if prefix is not None:
+            if type(prefix) is str:
+                if frozenset([prefix]) in self.included_groups:
+                    self.included_groups.remove(frozenset([prefix]))
+            else:
+                raise ValueError("`prefix` argument of layers.exclude_groups() should either be "
+                                 "a `NoneType` or a `str`, but it received {0} (of type '{1}'."
+                                 .format(str(prefix), type(prefix).__name__))
+
         for arg in args:
             if type(arg) is list and len(arg) > 1:
                 if frozenset(arg) in self.included_groups:
                     self.included_groups.remove(frozenset(arg))
-            elif type(arg) is str:
-                if frozenset([arg]) in self.included_groups:
-                    self.included_groups.remove(frozenset([arg]))
             else:
-                raise ValueError("layers.exclude_groups() only accepts strings or lists (with more than one element) "
+                raise ValueError("layers.exclude_groups() only accepts a prefix string, or "
+                                 "lists (with more than one element) "
                                  "of strings, but it received {0} (of type '{1}')."
                                  .format(str(arg), type(arg).__name__))
 
