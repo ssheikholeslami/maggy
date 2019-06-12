@@ -87,6 +87,13 @@ class Layers(object):
         self.included_groups = set()
 
     def include(self, *args):
+        """
+        Include layers in the ablations study. Note that the first (input) and the last (output) layer of the base model
+        can never be included in the ablation study.
+        :param args: Strings or lists of strings, that should match layer names.
+        :type args: str or list
+        :return:
+        """
         for arg in args:
             if type(arg) is list:
                 for layer in arg:

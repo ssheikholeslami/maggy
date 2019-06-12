@@ -86,20 +86,21 @@ class LOCO(AbstractAblator):
             list_of_layers = [base_layer for base_layer in base_model.get_config()['layers']]
             if type(layer_identifier) is str:
                 # ablation of a single layer
-                for base_layer in reversed(list_of_layers):
+                for base_layer in reversed(list_of_layers[1:-1]):
+                    # the first (input) and last (output) layers should not be considered, hence list_of_layers[1:-1]
                     if base_layer['config']['name'] == layer_identifier:
                         list_of_layers.remove(base_layer)
             elif type(layer_identifier) is set:
                 # ablation of a layer group - all the layers in the group should be removed together
                 if len(layer_identifier) > 1:
                     # group of layers (non-prefix)
-                    for base_layer in reversed(list_of_layers):
+                    for base_layer in reversed(list_of_layers[1:-1]):
                         if base_layer['config']['name'] in layer_identifier:
                             list_of_layers.remove(base_layer)
                 elif len(layer_identifier) == 1:
                     # layer_identifier is a prefix
                     prefix = list(layer_identifier)[0].lower()
-                    for base_layer in reversed(list_of_layers):
+                    for base_layer in reversed(list_of_layers[1:-1]):
                         if base_layer['config']['name'].lower().startswith(prefix):
                             list_of_layers.remove(base_layer)
 
