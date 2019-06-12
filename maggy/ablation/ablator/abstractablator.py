@@ -31,8 +31,6 @@ class AbstractAblator(ABC):
         The trial should contain a dataset generator and a model generator.
         Depending on the ablator policy, the trials could come from a list (buffer) of pre-made trials,
         Or generated on the fly.
-        :param trial:
-        :return:
         """
         pass
 

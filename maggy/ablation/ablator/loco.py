@@ -141,7 +141,8 @@ class LOCO(AbstractAblator):
         # hence elements (layer group identifiers) are frozensets
 
         for layer_group in self.ablation_study.model.layers.included_groups:
-            self.trial_buffer.append(Trial(self.create_trial_dict(layer_identifier=set(layer_group)), trial_type='ablation'))
+            self.trial_buffer.append(
+                Trial(self.create_trial_dict(layer_identifier=set(layer_group)), trial_type='ablation'))
 
     def get_trial(self, trial=None):
         if self.trial_buffer:
