@@ -67,8 +67,14 @@ class LOCO(AbstractAblator):
                         x = []
                         for feature_name in training_features:
                             feature_tf_dtype = tf_record_schema[feature_name].dtype  # TODO handle tf.d64 cases
+                            # temporary fix for the case of tf.int64
+                            if feature_tf_dtype == tf.int64:
+                                feature_tf_dtype = tf.int32
                             x.append(tf.cast(example[feature_name], feature_tf_dtype))
                         label_tf_dtype = tf_record_schema[label_name].dtype
+                        # temporary fix for the case of tf.int64
+                        if label_tf_dtype == tf.int64:
+                            label_tf_dtype = tf.int32
                         y = [tf.cast(example[label_name], label_tf_dtype)]
                         return x, y
                     dataset = dataset.map(decode).shuffle(SHUFFLE_BUFFER_SIZE).batch(batch_size).repeat(num_epochs)
