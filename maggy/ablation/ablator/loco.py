@@ -66,7 +66,7 @@ class LOCO(AbstractAblator):
                         example = tf.parse_single_example(example_proto, tf_record_schema)
                         x = []
                         for feature_name in training_features:
-                            feature_tf_dtype = tf_record_schema[feature_name].dtype  # TODO handle tf.d64 cases
+                            feature_tf_dtype = tf_record_schema[feature_name].dtype
                             # temporary fix for the case of tf.int64
                             if feature_tf_dtype == tf.int64:
                                 feature_tf_dtype = tf.int32
