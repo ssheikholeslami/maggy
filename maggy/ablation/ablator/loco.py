@@ -22,7 +22,9 @@ class LOCO(AbstractAblator):
 
     def get_dataset_generator(self, ablated_feature=None, dataset_type='tfrecord'):
         """
-        Create and return a dataset generator function based on the ablation policy to be used in a trial.
+        Create and return a dataset generator function based on the ablation policy
+        (NO! THIS IS FOR THE ABSTRACT METHOD)
+        to be used in a trial.
         The returned function will be executed on the executor per each trial.
 
         :param ablated_feature: the name of the feature to be excluded from the training dataset.
@@ -63,7 +65,7 @@ class LOCO(AbstractAblator):
                     training_features.remove(label_name)
 
                     def decode(example_proto):
-                        example = tf.parse_single_example(example_proto, tf_record_schema)
+                        example = tf.parse_single_example( example_proto, tf_record_schema)
                         # prepare the features
                         x = []
                         for feature_name in training_features:
@@ -157,7 +159,7 @@ class LOCO(AbstractAblator):
 
     def get_trial(self, trial=None):
         if self.trial_buffer:
-            return self.trial_buffer.pop()
+            return self.trial_buffer.pop()  # but why `pop()`? :D
         else:
             return None
 

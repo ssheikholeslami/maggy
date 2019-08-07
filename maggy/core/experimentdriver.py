@@ -344,6 +344,8 @@ class ExperimentDriver(object):
                     if self.experiment_type == 'optimization':
                         hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
 
+                    # XXX what about ablation? forgot to dump to json?
+
                     # assign new trial
                     if self.experiment_type == 'optimization':
                         trial = self.optimizer.get_suggestion(trial)
