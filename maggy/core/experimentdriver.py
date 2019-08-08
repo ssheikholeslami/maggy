@@ -9,7 +9,7 @@ import secrets
 from datetime import datetime
 from sys import maxsize as integer_max
 from maggy import util
-from maggy.optimizer import AbstractOptimizer, RandomSearch
+from maggy.optimizer import AbstractOptimizer, RandomSearch, Asha, SingleRun
 from maggy.core import rpc
 from maggy.trial import Trial
 from maggy.earlystop import AbstractEarlyStop, MedianStoppingRule, NoStoppingRule
@@ -22,7 +22,7 @@ from hops import constants as hopsconstants
 from hops import hdfs as hopshdfs
 from hops import util as hopsutil
 
-import traceback
+driver_secret = None
 
 
 class ExperimentDriver(object):
@@ -38,9 +38,9 @@ class ExperimentDriver(object):
     # is called with a `searchspace` parameter, we infer that it is a hyperparameter optimization task,
     # and if it is called with `ablationstudy` parameter, we infer that it's an ablation study.
 
-    # So we first setup the type-specific experiment requirements, and then the general ones
-
     def __init__(self, experiment_type, **kwargs):
+
+        global driver_secret
 
         # COMMON EXPERIMENT SETUP
         self._final_store = []
@@ -65,6 +65,8 @@ class ExperimentDriver(object):
             searchspace = kwargs.get('searchspace')
             if isinstance(searchspace, Searchspace):
                 self.searchspace = searchspace
+            elif searchspace is None:
+                self.searchspace = Searchspace()
             else:
                 raise Exception(
                     "The experiment's search space should be an instance of maggy.Searchspace, "
@@ -72,6 +74,7 @@ class ExperimentDriver(object):
                     .format(str(searchspace), type(searchspace).__name__))
 
             optimizer = kwargs.get('optimizer')
+
             if isinstance(optimizer, str):
                 if optimizer.lower() == 'randomsearch':
                     self.optimizer = RandomSearch(self.num_trials, self.searchspace, self._final_store)

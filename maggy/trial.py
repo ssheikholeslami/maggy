@@ -43,7 +43,6 @@ class Trial(object):
         self.metric_history = []
         self.start = None
         self.duration = None
-        # util.quick_log("TRIAL INITIALIZED: " + str(self.trial_id) + str(self.params))
         self.lock = threading.RLock()
 
     def get_early_stop(self):
@@ -91,7 +90,7 @@ class Trial(object):
         raise ValueError("Hyperparameters need to be a dictionary.")
 
     def to_json(self):
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), default=util.json_default_numpy)
 
     def to_dict(self):
         obj_dict = {

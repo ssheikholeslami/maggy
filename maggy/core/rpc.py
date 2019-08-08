@@ -7,16 +7,15 @@ import socket
 import secrets
 import json
 
-import traceback
-
 from maggy.trial import Trial
 
 from hops import constants as hopsconstants
 from hops import util as hopsutil
-from maggy import util
 
 MAX_RETRIES = 3
 BUFSIZE = 1024 * 2
+
+server_host_port = None
 
 
 class Reservations(object):
@@ -117,11 +116,8 @@ class MessageSocket(object):
         recv_len = -1
         while not recv_done:
             buf = sock.recv(BUFSIZE)
-            if buf is None:
-                raise Exception("socket closed because buffer is None")
-            elif len(buf) == 0:
-                raise Exception("socket closed because length of buffer is 0")
-
+            if buf is None or len(buf) == 0:
+                raise Exception("socket closed")
             if recv_len == -1:
                 recv_len = struct.unpack('>I', buf[:4])[0]
                 data += buf[4:]
@@ -145,16 +141,9 @@ class MessageSocket(object):
         Returns:
 
         """
-        # util.quick_log("PREP-SENDING msg on sock: " + str(msg), 'RPC_DEBUG.log')
-        try:
-            data = cloudpickle.dumps(msg)
-        except AttributeError as ae:
-            raise Exception("Pickling failed: " + str(ae))
-        # util.quick_log("PREP-SENDING data (pickle) on sock: " + str(data), 'RPC_DEBUG.log')
+        data = cloudpickle.dumps(msg)
         buf = struct.pack('>I', len(data)) + data
-        # util.quick_log("PREP-SENDING buf on sock: " + str(buf), 'RPC_DEBUG.log')
         sock.sendall(buf)
-        # util.quick_log("SENT buf on sock: " + str(buf), 'RPC_DEBUG.log')
 
 
 class Server(MessageSocket):
@@ -252,7 +241,7 @@ class Server(MessageSocket):
 
             # lookup executor reservation to find assigned trial
             trialId = msg['trial_id']
-            # get early stopping flag for optimization trials
+            # get early stopping flag for hyperparameter optimization trials
             flag = False
             if exp_driver.experiment_type == 'optimization':
                 flag = exp_driver.get_trial(trialId).get_early_stop()
@@ -324,41 +313,45 @@ class Server(MessageSocket):
         Returns:
             address of the Server as a tuple of (host, port)
         """
+        global server_host_port
+
         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_sock.bind(('', 0))
+        if not server_host_port:
+            server_sock.bind(('', 0))
+            # hostname may not be resolvable but IP address probably will be
+            host = hopsutil._get_ip_address()
+            port = server_sock.getsockname()[1]
+            server_host_port = (host, port)
+
+            # register this driver with Hopsworks
+            sc = hopsutil._find_spark().sparkContext
+            app_id = str(sc.applicationId)
+
+            method = hopsconstants.HTTP_CONFIG.HTTP_POST
+            connection = hopsutil._get_http_connection(https=True)
+            resource_url = hopsconstants.DELIMITERS.SLASH_DELIMITER + \
+                        hopsconstants.REST_CONFIG.HOPSWORKS_REST_RESOURCE + hopsconstants.DELIMITERS.SLASH_DELIMITER + \
+                        "maggy" + hopsconstants.DELIMITERS.SLASH_DELIMITER + "drivers"
+            json_contents = {"hostIp": host,
+                            "port": port,
+                            "appId": app_id,
+                            "secret" : exp_driver._secret }
+            json_embeddable = json.dumps(json_contents)
+            headers = {hopsconstants.HTTP_CONFIG.HTTP_CONTENT_TYPE: hopsconstants.HTTP_CONFIG.HTTP_APPLICATION_JSON}
+
+            try:
+                response = hopsutil.send_request(connection, method, resource_url, body=json_embeddable, headers=headers)
+                if (response.status != 200):
+                    print("No connection to Hopsworks for logging.")
+                    exp_driver._log("No connection to Hopsworks for logging.")
+            except Exception as e:
+                print("Connection failed to Hopsworks. No logging.")
+                exp_driver._log(e)
+                exp_driver._log("Connection failed to Hopsworks. No logging.")
+        else:
+            server_sock.bind(server_host_port)
         server_sock.listen(10)
-
-        # hostname may not be resolvable but IP address probably will be
-        host = hopsutil._get_ip_address()
-        port = server_sock.getsockname()[1]
-        addr = (host, port)
-
-        # register this driver with Hopsworks
-        sc = hopsutil._find_spark().sparkContext
-        app_id = str(sc.applicationId)
-
-        method = hopsconstants.HTTP_CONFIG.HTTP_POST
-        connection = hopsutil._get_http_connection(https=True)
-        resource_url = hopsconstants.DELIMITERS.SLASH_DELIMITER + \
-                       hopsconstants.REST_CONFIG.HOPSWORKS_REST_RESOURCE + hopsconstants.DELIMITERS.SLASH_DELIMITER + \
-                       "maggy" + hopsconstants.DELIMITERS.SLASH_DELIMITER + "drivers"
-        json_contents = {"hostIp": host,
-                         "port": port,
-                         "appId": app_id,
-                         "secret" : exp_driver._secret }
-        json_embeddable = json.dumps(json_contents)
-        headers = {hopsconstants.HTTP_CONFIG.HTTP_CONTENT_TYPE: hopsconstants.HTTP_CONFIG.HTTP_APPLICATION_JSON}
-
-        try:
-            response = hopsutil.send_request(connection, method, resource_url, body=json_embeddable, headers=headers)
-            if (response.status != 200):
-                print("No connection to Hopsworks for logging.")
-                exp_driver._log("No connection to Hopsworks for logging.")
-        except Exception as e:
-            print("Connection failed to Hopsworks. No logging.")
-            exp_driver._log(e)
-            exp_driver._log("Connection failed to Hopsworks. No logging.")
 
         def _listen(self, sock, driver):
             CONNECTIONS = []
@@ -396,7 +389,7 @@ class Server(MessageSocket):
         t.daemon = True
         t.start()
 
-        return addr
+        return server_host_port
 
     def stop(self):
         """
@@ -428,13 +421,10 @@ class Client(MessageSocket):
 
     def _request(self, req_sock, msg_type, msg_data=None, trial_id=None, logs=None):
         """Helper function to wrap msg w/ msg_type."""
-
         msg = {}
         msg['partition_id'] = self.partition_id
         msg['type'] = msg_type
         msg['secret'] = self._secret
-
-        # util.quick_log('Message so far: ' + str(msg) + "\n")
 
         if msg_type == 'FINAL' or msg_type == 'METRIC':
             msg['trial_id'] = trial_id
@@ -443,16 +433,14 @@ class Client(MessageSocket):
             else:
                 msg['logs'] = logs
 
-        # if msg_data or ((msg_data == True) or (msg_data == False)):
+        #if msg_data or ((msg_data == True) or (msg_data == False)):
         #    msg['data'] = msg_data
         msg['data'] = msg_data
-        # util.quick_log("After the if clause... msg is: " + str(msg))
+
         done = False
         tries = 0
         while not done and tries < MAX_RETRIES:
             try:
-                # util.quick_log("Trying to send... tries is: " + str(tries))
-                # util.quick_log("Trying to send... req_sock, msg: "+str(req_sock)+" " + str(msg), 'RPC_DEBUG.log')
                 MessageSocket.send(self, req_sock, msg)
                 done = True
             except socket.error as e:
@@ -463,7 +451,7 @@ class Client(MessageSocket):
                 req_sock.close()
                 req_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 req_sock.connect(self.server_addr)
-        # util.quick_log("REQ_SOCK PASSED is: " + str(req_sock), 'RPC_DEBUG.log')
+
         resp = MessageSocket.receive(self, req_sock)
 
         return resp

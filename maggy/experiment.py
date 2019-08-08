@@ -35,7 +35,7 @@ def lagom(map_fun, experiment_type,
           ablation_study=None, ablator=None,
           es_policy='median', es_interval=300, es_min=10, description=''):
     """Launches a maggy experiment, which depending on `experiment_type` can
-    either be hyperparameter optimization or ablation study.
+    either be a hyperparameter optimization or an ablation study experiment.
 
     Given a search space, objective and a model training procedure `map_fun`
     (black-box function), an experiment is the whole process of finding the
@@ -47,7 +47,8 @@ def lagom(map_fun, experiment_type,
 
     :param map_fun: User defined experiment containing the model training.
     :type map_fun: function
-    :param experiment_type: Type of Maggy experiment. Can either be 'optimization' or 'ablation'
+    :param experiment_type: Type of Maggy experiment, either 'optimization' or 'ablation'
+    :type experiment_type: str
     :param searchspace: A maggy Searchspace object from which samples are drawn.
     :type searchspace: Searchspace
     :param optimizer: The optimizer is the part generating new trials.
@@ -60,7 +61,7 @@ def lagom(map_fun, experiment_type,
     :type num_trials: int
     :param name: A user defined experiment identifier.
     :type name: str
-    :param hb_interval: The heartbeat interval in secondss from trial executor
+    :param hb_interval: The heartbeat interval in seconds from trial executor
         to experiment driver, defaults to 1
     :type hb_interval: int, optional
     :param es_policy: The earlystopping policy, defaults to 'median'
@@ -121,12 +122,14 @@ def lagom(map_fun, experiment_type,
                                           num_executors=num_executors, hb_interval=hb_interval, es_policy=es_policy,
                                           es_interval=es_interval, es_min=es_min, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
+
         elif experiment_type == 'ablation':
             exp_driver = ExperimentDriver('ablation', ablation_study=ablation_study, ablator=ablator,
                                           name=name, num_executors=num_executors,
                                           hb_interval=hb_interval, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
-
+            # using exp_driver.num_executor since it has been set using
+            # ablator.get_number_of_trials()
             if num_executors > exp_driver.num_executors:
                 num_executors = exp_driver.num_executors
         else:
@@ -189,7 +192,7 @@ def _exception_handler():
     """
     global running
     global experiment_json
-    if running and experiment_json != None:
+    if running and experiment_json is not None:
         experiment_json = json.loads(experiment_json)
         experiment_json['status'] = "FAILED"
         experiment_json['finished'] = datetime.now().isoformat()

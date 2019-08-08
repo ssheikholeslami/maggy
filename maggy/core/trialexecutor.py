@@ -1,5 +1,8 @@
+import builtins as __builtin__
+
 import socket
 import time
+import inspect
 from maggy import util, tensorboard, constants
 from maggy.core import rpc, exceptions, config
 from maggy.core.reporter import Reporter
@@ -34,7 +37,19 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
         client = rpc.Client(server_addr, partition_id,
                             task_attempt, hb_interval, secret)
         log_file = app_dir + '/logs/executor_' + str(partition_id) + '_' + str(task_attempt) + '.log'
-        reporter = Reporter(log_file, partition_id, task_attempt)
+
+        # save the builtin print
+        original_print = __builtin__.print
+
+        reporter = Reporter(log_file, partition_id, task_attempt, original_print)
+
+        def maggy_print(*args, **kwargs):
+            """Maggy custom print() function."""
+            reporter.log(' '.join(str(x) for x in args))
+            original_print(*args, **kwargs)
+
+        # override the builtin print
+        __builtin__.print = maggy_print
 
         try:
             client_addr = client.client_addr
@@ -58,7 +73,6 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
             # blocking
             # XXX separate suggestion calls for different types?
             trial_id, parameters = client.get_suggestion()
-            # util.quick_log('Success in getting suggestion: ' + str(trial_id) + " params:" + str(parameters))
 
             while not client.done:
                 if experiment_type == 'ablation':
@@ -75,7 +89,11 @@ def _prepare_func(app_id, run_id, experiment_type, map_fun, server_addr, hb_inte
                     reporter.log("Starting Trial: {}".format(trial_id), False)
                     reporter.log("Trial Configuration: {}".format(parameters), False)
 
-                    retval = map_fun(**parameters, reporter=reporter)
+                    sig = inspect.signature(map_fun)
+                    if sig.parameters.get('reporter', None):
+                        retval = map_fun(**parameters, reporter=reporter)
+                    else:
+                        retval = map_fun(**parameters)
 
                     # Make sure user function returns a numeric value
                     if retval is None:

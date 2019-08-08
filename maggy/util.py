@@ -1,11 +1,11 @@
 import socket
 import math
+import numpy as np
 from pyspark.sql import SparkSession
 from pyspark import TaskContext
 
 from hops import util as hopsutil
 from hops import hdfs as hopshdfs
-from datetime import datetime
 
 
 def _get_experiments_dir(name):
@@ -19,7 +19,6 @@ def _get_experiments_dir(name):
         hopshdfs.mkdir(maggy_exp_dir)
 
     return maggy_exp_dir
-
 
 def _get_run_dir(name):
     """Checks the index of the latest run of an experiments and creates a new
@@ -41,13 +40,11 @@ def _get_run_dir(name):
         hopshdfs.mkdir(run_dir)
         return new_run, run_dir
 
-
 def _get_runs(name):
     """Returns a list of hdfs paths for the runs of the experiment with `name`.
     """
     maggy_exp_dir = _get_experiments_dir(name)
     return hopshdfs.ls(maggy_exp_dir)
-
 
 def _init_run(run_dir, app_id):
     app_dir = run_dir + '/' + app_id
@@ -58,7 +55,6 @@ def _init_run(run_dir, app_id):
     hopshdfs.mkdir(logs)
 
     return app_dir, trials, logs
-
 
 def num_executors():
     """
@@ -72,7 +68,6 @@ def num_executors():
     except:
         return int(sc._conf.get('spark.executor.instances'))
 
-
 def get_partition_attempt_id():
     """Returns partitionId and attemptNumber of the task context, when invoked
     on a spark executor.
@@ -85,11 +80,9 @@ def get_partition_attempt_id():
     task_context = TaskContext.get()
     return task_context.partitionId(), task_context.attemptNumber()
 
-
 def print_trial_store(store):
     for _, value in store.items():
         print(value.to_json())
-
 
 def _progress_bar(done, total):
 
@@ -109,19 +102,13 @@ def _progress_bar(done, total):
             bar += ']'
             return bar
 
-
-def quick_log(log_msg, path_from_resources='DEBUG.log'):
-    """
-    An inefficient yet quick logger to save you from banging your head on your desk
-    :param log_msg: the actual message to write to the file
-    :param path_from_resources: path relative to the `Resources` folder in hops
-    """
-    abs_path = hopshdfs.abs_path('') + 'Resources/'
-    log_file = abs_path + path_from_resources
-    if not hopshdfs.exists(log_file):
-        hopshdfs.dump(log_msg, log_file)
-    fd = hopshdfs.open_file(log_file, flags='a')
-    msg = datetime.now().isoformat() + ': ' + str(log_msg)
-    fd.write((msg + '\n').encode())
-    fd.close()
-    del fd
+def json_default_numpy(obj):
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        raise TypeError("Object of type {0}: {1} is not JSON serializable"
+            .format(type(obj), obj))
