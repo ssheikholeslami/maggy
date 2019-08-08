@@ -128,8 +128,8 @@ def lagom(map_fun, experiment_type,
                                           name=name, num_executors=num_executors,
                                           hb_interval=hb_interval, description=description,
                                           app_dir=app_dir, log_dir=log_dir, trial_dir=trial_dir)
-            # using exp_driver.num_executor since it has been set using
-            # ablator.get_number_of_trials()
+            # using exp_driver.num_executor since
+            # it has been set using ablator.get_number_of_trials() in experiment.py
             if num_executors > exp_driver.num_executors:
                 num_executors = exp_driver.num_executors
         else:

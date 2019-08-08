@@ -1,6 +1,7 @@
 import json
 import threading
 import hashlib
+
 from maggy import util
 
 
@@ -19,13 +20,17 @@ class Trial(object):
     ERROR = "ERROR"
     FINALIZED = "FINALIZED"
 
-    def __init__(self, params, trial_type):
+    def __init__(self, params, trial_type='optimization'):
         """Create a new trial object from a hyperparameter combination
         ``params``.
 
         :param params: A dictionary of Hyperparameters as key value pairs.
         :type params: dict
         """
+        # XXX before merge, we should remove the default value for trial_type
+        # and make sure everywhere Trial() is called (e.g. in all optimizers)
+        # trial_type is passed
+        # @Moritz
 
         self.trial_type = trial_type
         # XXX temp fix, have to come up with abstractions

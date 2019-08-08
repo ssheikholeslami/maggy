@@ -30,6 +30,7 @@ class ExperimentDriver(object):
     SECRET_BYTES = 8
     # TODO rewrite with @classmethod
 
+    # @Moritz:
     # for now, we infer the experiment type (an optimization experiment or an ablation study)
     # using keyword arguments, and set self.experiment_type to an according string.
     # Some of these arguments are required for any maggy experiment:
@@ -75,9 +76,21 @@ class ExperimentDriver(object):
 
             optimizer = kwargs.get('optimizer')
 
-            if isinstance(optimizer, str):
+            if optimizer is None or optimizer.lower() == 'none':
+                if len(self.searchspace.names()) == 0:
+                    self.optimizer = SingleRun()
+                else:
+                    raise Exception(
+                        'Searchspace has to be empty or None to use without optimizer')
+
+            elif isinstance(optimizer, str):
                 if optimizer.lower() == 'randomsearch':
-                    self.optimizer = RandomSearch(self.num_trials, self.searchspace, self._final_store)
+                    self.optimizer = RandomSearch()
+                elif optimizer.lower() == 'asha':
+                    self.optimizer = Asha()
+                else:
+                    raise Exception(
+                        "Unknown Optimizer. Can't initialize experiment driver.")
             elif isinstance(optimizer, AbstractOptimizer):
                 self.optimizer = optimizer
                 print("Custom Optimizer initialized.")  # TODO do we need this print?
@@ -88,11 +101,14 @@ class ExperimentDriver(object):
                     "maggy.optimizer.AbstractOptimizer, "
                     "but it is {0} (of type '{1}')."
                     .format(str(optimizer), type(optimizer).__name__))
+            # Set references to data in optimizer
+            self.optimizer.num_trials = self.num_trials
+            self.optimizer.searchspace = self.searchspace
+            self.optimizer.final_store = self._final_store
 
             direction = kwargs.get('direction')
-            if isinstance(direction, str):
-                if direction.lower() in ['min', 'max']:
-                    self.direction = direction.lower()
+            if isinstance(direction, str) and direction.lower() in ['min', 'max']:
+                self.direction = direction.lower()
             else:
                 raise Exception(
                     "The experiment's direction should be an string (either 'min' or 'max') "
@@ -100,20 +116,24 @@ class ExperimentDriver(object):
                     .format(str(direction), type(direction).__name__))
 
             es_policy = kwargs.get('es_policy')
+            # XXX check self.early_stop_check vs. self.earlystop_check
             if isinstance(es_policy, str):
                 if es_policy.lower() == 'median':
                     self.earlystop_check = MedianStoppingRule.earlystop_check
-                    # XXX should also throw an exception if it's a string but not 'median'!
-                    # also the same thing for optimizers, etc.
-                    # XXX check self.early_stop_check vs. self.earlystop_check
                 elif es_policy.lower() == 'none':
                     self.earlystop_check = NoStoppingRule.earlystop_check
+                else:
+                    raise Exception(
+                        "The experiment's early stopping policy should either be a string ('median' or 'none') "
+                        "or a custom policy that is an instance of maggy.earlystop.AbstractEarlyStop, "
+                        "but it is {0} (of type '{1}')."
+                        .format(str(es_policy), type(es_policy).__name__))
             elif isinstance(es_policy, AbstractEarlyStop):
                 self.earlystop_check = es_policy.earlystop_check
                 print("Custom Early Stopping policy initialized.")  # TODO do we need this print?
             else:
                 raise Exception(
-                    "The experiment's early stopping policy should either be string ('median' or 'none') "
+                    "The experiment's early stopping policy should either be a string ('median' or 'none') "
                     "or a custom policy that is an instance of maggy.earlystop.AbstractEarlyStop, "
                     "but it is {0} (of type '{1}')."
                     .format(str(es_policy), type(es_policy).__name__))
@@ -134,11 +154,12 @@ class ExperimentDriver(object):
                 self.ablation_study = ablation_study
             else:
                 raise Exception(
-                    "The experiment's ablation study configuration should be an instance of maggy.ablation.AblationStudy, "
+                    "The experiment's ablation study configuration should be an instance of "
+                    "maggy.ablation.AblationStudy, "
                     "but it is {0} (of type '{1}')."
                     .format(str(ablation_study), type(ablation_study).__name__))
 
-            ablator = kwargs.get('ablator')  # XXX wtf ablator... maybe planner is a better name
+            ablator = kwargs.get('ablator')
             if isinstance(ablator, str):
                 if ablator.lower() == 'loco':
                     self.ablator = LOCO(ablation_study, self._final_store)
@@ -147,7 +168,7 @@ class ExperimentDriver(object):
                         self.num_executors = self.num_trials
                 else:
                     raise Exception(
-                        "The experiment's ablation study policy should either be string ('loco') "
+                        "The experiment's ablation study policy should either be a string ('loco') "
                         "or a custom policy that is an instance of maggy.ablation.ablation.AbstractAblator, "
                         "but it is {0} (of type '{1}')."
                         .format(str(ablator), type(ablator).__name__))
@@ -156,7 +177,7 @@ class ExperimentDriver(object):
                 print("Custom Ablator initialized. \n")
             else:
                 raise Exception(
-                    "The experiment's ablation study policy should either be string ('loco') "
+                    "The experiment's ablation study policy should either be a string ('loco') "
                     "or a custom policy that is an instance of maggy.ablation.ablation.AbstractAblator, "
                     "but it is {0} (of type '{1}')."
                     .format(str(ablator), type(ablator).__name__))
@@ -171,22 +192,21 @@ class ExperimentDriver(object):
                 "but it is {0}."
                 .format(str(self.experiment_type)))
 
-            # throw exception and exit
-
         # FINALIZE EXPERIMENT SETUP
         self.server = rpc.Server(self.num_executors)
-        self._secret = self._generate_secret(ExperimentDriver.SECRET_BYTES)
+        if not driver_secret:
+            driver_secret = self._generate_secret(ExperimentDriver.SECRET_BYTES)
+        self._secret = driver_secret
         self.job_start = datetime.now()
-        self.job_end = 0
-        self.duration = 0
         self.executor_logs = ''
         self.maggy_log = ''
         self.log_lock = threading.RLock()
         self.log_file = kwargs.get('log_dir') + '/maggy.log'
         self.trial_dir = kwargs.get('trial_dir')
         self.app_dir = kwargs.get('app_dir')
+        self.worker_exception = None
 
-        # Open File desc for HDFS to log
+    # Open File desc for HDFS to log
         if not hopshdfs.exists(self.log_file):
             hopshdfs.dump('', self.log_file)
         self.fd = hopshdfs.open_file(self.log_file, flags='w')
@@ -200,10 +220,7 @@ class ExperimentDriver(object):
         elif self.experiment_type == 'ablation':
             self.ablator.initialize()
 
-        try:
-            self._start_worker()
-        except Exception as e:
-            raise
+        self._start_worker()
 
     def finalize(self, job_start, job_end):
 
@@ -222,7 +239,7 @@ class ExperimentDriver(object):
                 'WORST combination ' + json.dumps(self.result['worst_hp']) + ' -- metric ' + str(self.result['worst_val']) + '\n' \
                 'AVERAGE metric -- ' + str(self.result['avg']) + '\n' \
                 'EARLY STOPPED Trials -- ' + str(self.result['early_stopped']) + '\n' \
-                'Total Job Time ' + self.duration + '\n'
+                'Total job time ' + self.duration + '\n'
 
         elif self.experiment_type == 'ablation':
 
@@ -230,6 +247,7 @@ class ExperimentDriver(object):
             self.job_end = datetime.now()
             self.duration = hopsutil._time_diff(self.job_start, self.job_end)
 
+            # TODO modify so that "None" is not printed
             results = "\n------ " + str(self.ablator.__class__.__name__) + " Results ------ \n" + \
                 "BEST Config Excludes " + json.dumps(self.result['best_config']) + " -- metric " + \
                       str(self.result['best_val']) + "\n" + \
@@ -242,7 +260,8 @@ class ExperimentDriver(object):
 
         self._log(results)
 
-        hopshdfs.dump(json.dumps(self.result), self.app_dir + '/result.json')
+        hopshdfs.dump(json.dumps(self.result, default=util.json_default_numpy),
+                      self.app_dir + '/result.json')
         sc = hopsutil._find_spark().sparkContext
         hopshdfs.dump(self.json(sc), self.app_dir + '/maggy.json')
 
@@ -259,135 +278,130 @@ class ExperimentDriver(object):
 
     def _start_worker(self):
 
-        # util.quick_log('entered _start_worker, experiment_type is: ' + self.experiment_type)
-
         def _target_function(self):
 
-            time_earlystop_check = datetime.now()  # only used by earlystop-supporting experiments
+            try:
+                time_earlystop_check = datetime.now()  # only used by earlystop-supporting experiments
+                while not self.worker_done:
+                    trial = None
+                    # get a message
+                    try:
+                        msg = self._message_q.get_nowait()
+                    except:
+                        msg = {'type': None}
 
-            # util.quick_log("inside the thread...")
+                    if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
+                        time_earlystop_check = datetime.now()
 
-            while not self.worker_done:
-                trial = None
-                # get a message
-                try:
-                    # util.quick_log("worker is not done and  trying to get a message")
-                    msg = self._message_q.get_nowait()
-                    # util.quick_log("success with the first try clause... msg is" + str(msg))
-                except:
-                    msg = {'type': None}
+                    # pass currently running trials to early stop component
+                        if len(self._final_store) > self.es_min:
+                            self._log("Check for early stopping.")
+                            try:
+                                to_stop = self.earlystop_check(
+                                    self._trial_store, self._final_store, self.direction)
+                            except Exception as e:
+                                self._log(e)
+                                to_stop = []
+                            if len(to_stop) > 0:
+                                self._log("Trials to stop: {}".format(to_stop))
+                            for trial_id in to_stop:
+                                self.get_trial(trial_id).set_early_stop()
 
-                if (datetime.now() - time_earlystop_check).total_seconds() >= self.es_interval:
-                    time_earlystop_check = datetime.now()
+                    # depending on message do the work
+                    # 1. METRIC
+                    if msg['type'] == 'METRIC':
+                        # append executor logs if in the message
+                        logs = msg.get('logs', None)
+                        if logs is not None:
+                            with self.log_lock:
+                                self.executor_logs = self.executor_logs + logs
 
-                # pass currently running trials to early stop component
-                    if len(self._final_store) > self.es_min:
-                        self._log("Check for early stopping.")
-                        try:
-                            to_stop = self.earlystop_check(
-                                self._trial_store, self._final_store, self.direction)
-                        except Exception as e:
-                            self._log(e)
-                            to_stop = []
-                        if len(to_stop) > 0:
-                            self._log("Trials to stop: {}".format(to_stop))
-                        for trial_id in to_stop:
-                            self.get_trial(trial_id).set_early_stop()
+                        if msg['trial_id'] is not None and msg['data'] is not None:
+                            self.get_trial(msg['trial_id']).append_metric(msg['data'])
 
-                # depending on message do the work
-                # 1. METRIC
-                if msg['type'] == 'METRIC':
-                    # append executor logs if in the message
-                    logs = msg.get('logs', None)
-                    if logs is not None:
-                        with self.log_lock:
-                            self.executor_logs = self.executor_logs + logs
-
-                    if msg['trial_id'] is not None and msg['data'] is not None:
-                        self.get_trial(msg['trial_id']).append_metric(msg['data'])
-
-                # 2. BLACKLIST the trial
-                elif msg['type'] == 'BLACK':
-                    trial = self.get_trial(msg['trial_id'])
-                    with trial.lock:
-                        trial.status = Trial.SCHEDULED
-                        self.server.reservations.assign_trial(
-                            msg['partition_id'], msg['trial_id'])
-
-                # 3. FINAL
-                elif msg['type'] == 'FINAL':
-                    # set status
-                    # get trial only once
-                    trial = self.get_trial(msg['trial_id'])
-
-                    logs = msg.get('logs', None)
-                    if logs is not None:
-                        with self.log_lock:
-                            self.executor_logs = self.executor_logs + logs
-
-                    # finalize the trial object
-                    with trial.lock:
-                        trial.status = Trial.FINALIZED
-                        trial.final_metric = msg['data']
-                        trial.duration = hopsutil._time_diff(
-                            trial.start, datetime.now())
-
-                    # move trial to the finalized ones
-                    self._final_store.append(trial)
-                    self._trial_store.pop(trial.trial_id)
-
-                    # update result dictionary
-                    self._update_result(trial)
-                    # keep for later in case tqdm doesn't work
-                    self.maggy_log = self._update_maggy_log()
-                    self._log(self.maggy_log)
-
-                    # util.quick_log("Finalized trial... before JSON dump")
-
-                    if self.experiment_type == 'optimization':
-                        hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
-
-                    # XXX what about ablation? forgot to dump to json?
-
-                    # assign new trial
-                    if self.experiment_type == 'optimization':
-                        trial = self.optimizer.get_suggestion(trial)
-                    elif self.experiment_type == 'ablation':
-                        trial = self.ablator.get_trial(trial)
-                    if trial is None:
-                        self.server.reservations.assign_trial(
-                            msg['partition_id'], None)
-                        self.experiment_done = True
-                    else:
+                    # 2. BLACKLIST the trial
+                    elif msg['type'] == 'BLACK':
+                        trial = self.get_trial(msg['trial_id'])
                         with trial.lock:
-                            trial.start = datetime.now()
                             trial.status = Trial.SCHEDULED
                             self.server.reservations.assign_trial(
-                                msg['partition_id'], trial.trial_id)
-                            self.add_trial(trial)
+                                msg['partition_id'], msg['trial_id'])
 
-                            # util.quick_log("TRIAL ASSIGNED AFTER PREVIOUS FINALIZATION: " + str(msg))
+                    # 3. FINAL
+                    elif msg['type'] == 'FINAL':
+                        # set status
+                        # get trial only once
+                        trial = self.get_trial(msg['trial_id'])
 
-                # 4. REG
-                elif msg['type'] == 'REG':
-                    if self.experiment_type == 'optimization':
-                        trial = self.optimizer.get_suggestion()
-                    elif self.experiment_type == 'ablation':
-                        trial = self.ablator.get_trial()
-                    if trial is None:
-                        self.experiment_done = True
-                    else:
+                        logs = msg.get('logs', None)
+                        if logs is not None:
+                            with self.log_lock:
+                                self.executor_logs = self.executor_logs + logs
+
+                        # finalize the trial object
                         with trial.lock:
-                            trial.start = datetime.now()
-                            trial.status = Trial.SCHEDULED
+                            trial.status = Trial.FINALIZED
+                            trial.final_metric = msg['data']
+                            trial.duration = hopsutil._time_diff(
+                                trial.start, datetime.now())
+
+                        # move trial to the finalized ones
+                        self._final_store.append(trial)
+                        self._trial_store.pop(trial.trial_id)
+
+                        # update result dictionary
+                        self._update_result(trial)
+                        # keep for later in case tqdm doesn't work
+                        self.maggy_log = self._update_maggy_log()
+                        self._log(self.maggy_log)
+
+                        if self.experiment_type == 'optimization':
+                            hopshdfs.dump(trial.to_json(), self.trial_dir + '/' + trial.trial_id + '/trial.json')
+                        # XXX what about ablation? forgot to dump to json?
+
+                        # assign new trial
+                        if self.experiment_type == 'optimization':
+                            trial = self.optimizer.get_suggestion(trial)
+                        elif self.experiment_type == 'ablation':
+                            trial = self.ablator.get_trial(trial)
+                        if trial is None:
                             self.server.reservations.assign_trial(
-                                msg['partition_id'], trial.trial_id)
-                            self.add_trial(trial)
-                            # util.quick_log("TRIAL ASSIGNED WITH REGISTRATION: " + str(msg))
+                                msg['partition_id'], None)
+                            self.experiment_done = True
+                        else:
+                            with trial.lock:
+                                trial.start = datetime.now()
+                                trial.status = Trial.SCHEDULED
+                                self.server.reservations.assign_trial(
+                                    msg['partition_id'], trial.trial_id)
+                                self.add_trial(trial)
+
+                    # 4. REG
+                    elif msg['type'] == 'REG':
+                        if self.experiment_type == 'optimization':
+                            trial = self.optimizer.get_suggestion()
+                        elif self.experiment_type == 'ablation':
+                            trial = self.ablator.get_trial()
+                        if trial is None:
+                            self.experiment_done = True
+                        else:
+                            with trial.lock:
+                                trial.start = datetime.now()
+                                trial.status = Trial.SCHEDULED
+                                self.server.reservations.assign_trial(
+                                    msg['partition_id'], trial.trial_id)
+                                self.add_trial(trial)
+            except Exception as worker_exception:
+                # Exception can't be propagated to parent thread
+                # therefore log the exception and fail experiment
+                self._log('Worker Exception')
+                self._log(worker_exception)
+                self.worker_exception = worker_exception
+                self.server.stop()
+
 
         t = threading.Thread(target=_target_function, args=(self,))
         t.daemon = True
-        # util.quick_log("starting the thread...")
         t.start()
 
     def stop(self):
@@ -396,6 +410,9 @@ class ExperimentDriver(object):
         self.server.stop()
         self.fd.flush()
         self.fd.close()
+        if self.worker_exception:
+            raise Exception(
+                "Worker: {}".format(self.worker_exception))
 
     def json(self, sc):
         """Get all relevant experiment information in JSON format.
@@ -404,8 +421,7 @@ class ExperimentDriver(object):
         if hopsconstants.ENV_VARIABLES.HOPSWORKS_USER_ENV_VAR in os.environ:
             user = os.environ[hopsconstants.ENV_VARIABLES.HOPSWORKS_USER_ENV_VAR]
 
-        experiment_json = {
-            'project': hopshdfs.project_name(),
+        experiment_json = {'project': hopshdfs.project_name(),
             'user': user,
             'name': self.name,
             'module': 'maggy',
@@ -422,10 +438,10 @@ class ExperimentDriver(object):
 
         if self.experiment_type == 'optimization':
             experiment_json['hyperparameter_space'] = json.dumps(self.searchspace.to_dict())
-            experiment_json['optimizer'] = self.optimizer.__class__.__name__,
+            experiment_json['function'] = self.optimizer.__class__.__name__
         elif self.experiment_type == 'ablation':
             experiment_json['ablation_study'] = json.dumps(self.ablation_study.to_dict())
-            experiment_json['ablator'] = self.ablator.__class__.__name__,
+            experiment_json['ablator'] = self.ablator.__class__.__name__
 
         if self.experiment_done:
             experiment_json['status'] = "FINISHED"
@@ -438,7 +454,7 @@ class ExperimentDriver(object):
         else:
             experiment_json['status'] = "RUNNING"
 
-        return json.dumps(experiment_json)
+        return json.dumps(experiment_json, default=util.json_default_numpy)
 
     def _generate_secret(self, nbytes):
         """Generates a secret to be used by all clients during the experiment
@@ -452,7 +468,7 @@ class ExperimentDriver(object):
         """
 
         metric = trial.final_metric
-        parameters = trial.params
+        param_string = trial.params
         trial_id = trial.trial_id
 
         if self.experiment_type == 'optimization':
@@ -460,8 +476,8 @@ class ExperimentDriver(object):
             if self.result.get('best_id', None) is None:
                 self.result = {
                     'best_id': trial_id, 'best_val': metric,
-                    'best_hp': parameters, 'worst_id': trial_id,
-                    'worst_val': metric, 'worst_hp': parameters,
+                    'best_hp': param_string, 'worst_id': trial_id,
+                    'worst_val': metric, 'worst_hp': param_string,
                     'avg': metric, 'metric_list': [metric], 'num_trials': 1,
                     'early_stopped': 0,
                 }
@@ -470,36 +486,35 @@ class ExperimentDriver(object):
                     self.result['early_stopped'] += 1
 
                 return
-
             if self.direction == 'max':
                 if metric > self.result['best_val']:
                     self.result['best_val'] = metric
                     self.result['best_id'] = trial_id
-                    self.result['best_hp'] = parameters
+                    self.result['best_hp'] = param_string
                 if metric < self.result['worst_val']:
                     self.result['worst_val'] = metric
                     self.result['worst_id'] = trial_id
-                    self.result['worst_hp'] = parameters
+                    self.result['worst_hp'] = param_string
             elif self.direction == 'min':
                 if metric < self.result['best_val']:
                     self.result['best_val'] = metric
                     self.result['best_id'] = trial_id
-                    self.result['best_hp'] = parameters
+                    self.result['best_hp'] = param_string
                 if metric > self.result['worst_val']:
                     self.result['worst_val'] = metric
                     self.result['worst_id'] = trial_id
-                    self.result['worst_hp'] = parameters
+                    self.result['worst_hp'] = param_string
 
         elif self.experiment_type == 'ablation':
 
             # pop function values and trial_type from parameters, since we don't need them
-            parameters.pop('dataset_function', None)
-            parameters.pop('model_function', None)
+            param_string.pop('dataset_function', None)
+            param_string.pop('model_function', None)
             # First finalized trial
             if self.result.get('best_id', None) is None:
                 self.result = {
-                    'best_id': trial_id, 'best_val': metric, 'best_config': parameters,
-                    'worst_id': trial_id, 'worst_val': metric, 'worst_config': parameters,
+                    'best_id': trial_id, 'best_val': metric, 'best_config': param_string,
+                    'worst_id': trial_id, 'worst_val': metric, 'worst_config': param_string,
                     'avg': metric, 'metric_list': [metric], 'num_trials': 1,
                     'early_stopped': 0,
                     # TODO earlystop included temporarily for compatibility with sparkmagic, remove before release
@@ -510,11 +525,11 @@ class ExperimentDriver(object):
             if metric > self.result['best_val']:
                 self.result['best_id'] = trial_id
                 self.result['best_val'] = metric
-                self.result['best_config'] = parameters
+                self.result['best_config'] = param_string
             elif metric < self.result['worst_val']:
                 self.result['worst_id'] = trial_id
                 self.result['worst_val'] = metric
-                self.result['worst_config'] = parameters
+                self.result['worst_config'] = param_string
 
         # update results and average regardless of experiment type
         self.result['metric_list'].append(metric)
@@ -532,14 +547,15 @@ class ExperimentDriver(object):
         log = ''
 
         if self.experiment_type == 'optimization':
-            log = 'Maggy ' + str(finished) + '/' + str(self.num_trials) + \
+            log = 'Maggy Optimization ' + str(finished) + '/' + str(self.num_trials) + \
                 ' (' + str(self.result['early_stopped']) + ') ' + \
                 util._progress_bar(finished, self.num_trials) + ' - BEST ' + \
                 json.dumps(self.result['best_hp']) + ' - metric ' + \
                 str(self.result['best_val'])
 
         elif self.experiment_type == 'ablation':
-            log = "Maggy Ablation Study " + str(finished) + "/" + str(self.num_trials) + \
+            # TODO modify so that "None" is not printed
+            log = "Maggy Ablation " + str(finished) + "/" + str(self.num_trials) + \
                 util._progress_bar(finished, self.num_trials) + ' - BEST Excludes' + \
                 json.dumps(self.result['best_config']) + ' - metric ' + \
                 str(self.result['best_val'])
@@ -561,4 +577,3 @@ class ExperimentDriver(object):
         """
         msg = datetime.now().isoformat() + ': ' + str(log_msg)
         self.fd.write((msg + '\n').encode())
-
