@@ -36,7 +36,7 @@ def lagom(map_fun, experiment_type,
           es_policy='median', es_interval=300, es_min=10, description=''):
     """Launches a maggy experiment, which depending on `experiment_type` can
     either be a hyperparameter optimization or an ablation study experiment.
-
+    
     Given a search space, objective and a model training procedure `map_fun`
     (black-box function), an experiment is the whole process of finding the
     best hyperparameter combination in the search space, optimizing the
