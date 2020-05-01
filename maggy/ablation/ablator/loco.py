@@ -96,7 +96,11 @@ class LOCO(AbstractAblator):
                     "Use 'tfrecord' or write your own custom dataset generator.",
                 )
 
-    def get_model_generator(self, layer_identifier=None, custom_model_generator=None):
+    def get_model_generator(self, layer_identifier=None, custom_model_generator=None, type=None,
+    ending_layer=None, starting_layer=None): # TODO rewrite with kwargs?
+        
+        if type=='module':
+            return ablate_module(ending_layer, starting_layer)
 
         if layer_identifier is not None and custom_model_generator is not None:
             raise BadArgumentsError(
@@ -151,6 +155,66 @@ class LOCO(AbstractAblator):
             return new_model
 
         return model_generator
+    
+    def ablate_module(ending_layer, starting_layer):
+        import tensorflow as tf
+        base_model = self.ablation_study.model.base_model_generator()
+        config_dict = base_model.get_config()
+        base_model_dict = json.loads(base_model.to_json())
+
+        layers_mapping_dict = get_dict_of_inbound_layers_mapping(config_dict)
+        all_layers = get_list_of_layer_names(config_dict)
+        # example of an ending_layer: the concat layer that is at the end of the inception module that we want to remove
+        # example of starting_layer: the concat layer at the same level and before the ending_layer
+
+        # passing the state as the argument (layers_for_removal), rather than using a global variable
+        removal_list = get_layers_for_removal(ending_layer, starting_layer, layers_mapping_dict, [])
+        removal_indices = sorted([all_layers.index(layer_name) for layer_name in removal_list], reverse=True)
+
+        # first change the future references then remove the layers, since the indices
+        # will be changed after removal of each layer, and all_layers.index() would become invalid
+        layers_to_be_modified = []
+        for layer, its_inbound_layers in layers_mapping_dict.items():    
+            if ending_layer in its_inbound_layers:
+                # print(layer)
+                inbound_list = base_model_dict['config']['layers'][all_layers.index(layer)]['inbound_nodes'][0][0]
+                new_inbound_list = [starting_layer if x==ending_layer else x for x in inbound_list]
+                base_model_dict['config']['layers'][all_layers.index(layer)]['inbound_nodes'][0][0] = new_inbound_list
+        
+        # now remove the layers
+        for index in removal_indices:
+            base_model_dict['config']['layers'].pop(index)
+        
+        new_model = tf.keras.models.model_from_json(json.dumps(base_model_dict))
+        return new_model
+
+    def get_list_of_layer_names(config_dict):
+        list_of_names = []
+        for layer in config_dict['layers']:
+            list_of_names.append(layer['name'])
+        return list_of_names
+
+    def get_dict_of_inbound_layers_mapping(config_dict):
+        dict_of_inbound_layers = {}
+        for layer in config_dict['layers']:
+            list_of_inbound_layers = []
+            name = layer['name']
+            if len(layer['inbound_nodes']) > 0: # because some layers, such as input layers, do not have any inbound_nodes
+                for inbound_layer in layer['inbound_nodes'][0]:
+                    list_of_inbound_layers.append(inbound_layer[0])
+            dict_of_inbound_layers[name] = list_of_inbound_layers
+        return dict_of_inbound_layers
+
+    def get_layers_for_removal(ending_layer, starting_layer, layers_mapping_dict, layers_for_removal):
+        if ending_layer == starting_layer:
+            return
+        for inbound_layer in layers_mapping_dict[ending_layer]:
+            get_layers_for_removal(inbound_layer, starting_layer, layers_mapping_dict, layers_for_removal)
+        
+        layers_mapping_dict.pop(ending_layer) # not sure how this will change the state
+        layers_for_removal.append(ending_layer)
+        return layers_for_removal
+
 
     def initialize(self):
         """
@@ -220,11 +284,13 @@ class LOCO(AbstractAblator):
         return
 
     def create_trial_dict(
-        self, ablated_feature=None, layer_identifier=None, custom_model_generator=None
+        self, type, ablated_feature=None, layer_identifier=None, custom_model_generator=None
     ):
         """
         Creates a trial dictionary that can be used for creating a Trial instance.
 
+        :param type: a string representing type of ablation trial 
+        ('feature', 'layer', 'module', or 'custom_model')
         :param ablated_feature: a string representing the name of a feature, or None
         :param layer_identifier: A string representing the name of a single layer, or a set representing a layer group.
         If the set has only one element, it is regarded as a prefix, so all layers with that prefix in their names
@@ -274,5 +340,9 @@ class LOCO(AbstractAblator):
                 custom_model_generator
             )
             trial_dict["ablated_layer"] = "Custom model: " + custom_model_generator[1]
+        
+        # 2.4 - module ablation based on base model generator
+        elif type=='module':
+
 
         return trial_dict
