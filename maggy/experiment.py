@@ -26,28 +26,20 @@ provided information.
 """
 import atexit
 
-from hops.experiment_impl.util import experiment_utils
-from hops import experiment
-
-from maggy import util
 from maggy.core import oblivious
-
-app_id = None
-running = False
-run_id = 1
-experiment_json = None
 
 lagom = None
 
 
-def set_context(context):
+def set_context(context, config):
     global lagom
     if context.lower() == "optimization":
+        oblivious.searchspace = config
         lagom = oblivious.lagom_v1
     elif context.lower() == "ablation":
         lagom = oblivious.lagom_v1
     elif context.lower() == "dist_training":
-        lagom = experiment.mirrored
+        lagom = oblivious.mirrored
     else:
         raise Exception(
             "Distribution context {} is not supported. Has to be one of the "
@@ -55,20 +47,4 @@ def set_context(context):
         )
 
 
-def _exit_handler():
-    """
-    Handles jobs killed by the user.
-    """
-    try:
-        global running
-        global experiment_json
-        if running and experiment_json is not None:
-            experiment_json["status"] = "KILLED"
-            experiment_utils._attach_experiment_xattr(
-                app_id, run_id, experiment_json, "REPLACE"
-            )
-    except Exception as err:
-        util._log(err)
-
-
-atexit.register(_exit_handler)
+atexit.register(oblivious._exit_handler)

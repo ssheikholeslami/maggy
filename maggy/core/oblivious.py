@@ -19,7 +19,7 @@ import time
 
 from hops import util as hopsutil
 from hops.experiment_impl.util import experiment_utils
-from hops import experiment
+from hops.experiment_impl.distribute import mirrored as mirrored_impl
 
 from maggy import util, tensorboard
 from maggy.core import trialexecutor, experimentdriver
@@ -29,8 +29,117 @@ running = False
 run_id = 1
 experiment_json = None
 
+searchspace = None
 
-mirrored = experiment.mirrored
+
+def mirrored(
+    map_fun, name="no-name", local_logdir=False, description=None, evaluator=False
+):
+    """
+    *Distributed Training*
+
+    Example usage:
+
+    >>> from hops import experiment
+    >>> def mirrored_training():
+    >>>    # Do all imports in the function
+    >>>    import tensorflow
+    >>>    # Put all code inside the wrapper function
+    >>>    from hops import tensorboard
+    >>>    from hops import devices
+    >>>    logdir = tensorboard.logdir()
+    >>>    ...MirroredStrategy()...
+    >>> experiment.mirrored(mirrored_training, local_logdir=True)
+
+    Args:
+        :map_fun: contains the code where you are using MirroredStrategy.
+        :name: name of the experiment
+        :local_logdir: True if *tensorboard.logdir()* should be in the local filesystem, otherwise it is in HDFS
+        :description: a longer description for the experiment
+        :evaluator: whether to run one of the workers as an evaluator
+
+    Returns:
+        HDFS path in your project where the experiment is stored and return value from the process running as chief
+
+    """
+
+    num_ps = hopsutil.num_param_servers()
+    assert num_ps == 0, "number of parameter servers should be 0"
+
+    global running
+    if running:
+        raise RuntimeError("An experiment is currently running.")
+
+    num_workers = hopsutil.num_executors()
+    if evaluator:
+        assert (
+            num_workers > 2
+        ), "number of workers must be atleast 3 if evaluator is set to True"
+
+    start = time.time()
+    sc = hopsutil._find_spark().sparkContext
+    try:
+        global app_id
+        global experiment_json
+        global run_id
+        app_id = str(sc.applicationId)
+
+        global searchspace
+        if searchspace is not None:
+            params_dict = searchspace.get_random_parameter_values(1)[0]
+        else:
+            raise Exception("Run optimization first, to set a searchspace.")
+
+        _start_run()
+
+        experiment_utils._create_experiment_dir(app_id, run_id)
+
+        experiment_json = experiment_utils._populate_experiment(
+            name,
+            "mirrored",
+            "DISTRIBUTED_TRAINING",
+            None,
+            description,
+            app_id,
+            None,
+            None,
+        )
+
+        experiment_json = experiment_utils._attach_experiment_xattr(
+            app_id, run_id, experiment_json, "CREATE"
+        )
+
+        logdir, return_dict = mirrored_impl._run(
+            sc,
+            map_fun,
+            run_id,
+            params_dict,
+            local_logdir=local_logdir,
+            name=name,
+            evaluator=evaluator,
+        )
+        duration = experiment_utils._seconds_to_milliseconds(time.time() - start)
+
+        experiment_utils._finalize_experiment(
+            experiment_json,
+            None,
+            app_id,
+            run_id,
+            "FINISHED",
+            duration,
+            logdir,
+            None,
+            None,
+        )
+
+        return logdir, return_dict
+    except:  # noqa: E722
+        _exception_handler(
+            experiment_utils._seconds_to_milliseconds(time.time() - start)
+        )
+        raise
+    finally:
+        _end_run(sc)
 
 
 def lagom_v1(
@@ -286,6 +395,39 @@ def _exception_handler(duration):
         if running and experiment_json is not None:
             experiment_json["state"] = "FAILED"
             experiment_json["duration"] = duration
+            experiment_utils._attach_experiment_xattr(
+                app_id, run_id, experiment_json, "REPLACE"
+            )
+    except Exception as err:
+        util._log(err)
+
+
+def _start_run():
+    global running
+    global app_id
+    global run_id
+    running = True
+    experiment_utils._set_ml_id(app_id, run_id)
+
+
+def _end_run(sc):
+    global running
+    global app_id
+    global run_id
+    run_id = run_id + 1
+    running = False
+    sc.setJobGroup("", "")
+
+
+def _exit_handler():
+    """
+    Handles jobs killed by the user.
+    """
+    try:
+        global running
+        global experiment_json
+        if running and experiment_json is not None:
+            experiment_json["status"] = "KILLED"
             experiment_utils._attach_experiment_xattr(
                 app_id, run_id, experiment_json, "REPLACE"
             )
