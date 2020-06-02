@@ -30,11 +30,19 @@ run_id = 1
 experiment_json = None
 
 searchspace = None
+dataset_generator = None
+model_generator = None
+ablation_study = None
+ablator = None
+optimizer = None
+strategy = None
+experiment_type = None
+
+name = "no-name"
+hparams = {}
 
 
-def mirrored(
-    map_fun, name="no-name", local_logdir=False, description=None, evaluator=False
-):
+def mirrored(map_fun, name=name, local_logdir=False, description=None, evaluator=False):
     """
     *Distributed Training*
 
@@ -85,10 +93,21 @@ def mirrored(
         app_id = str(sc.applicationId)
 
         global searchspace
-        if searchspace is not None:
+        global hparams
+        global dataset_generator
+        global model_generator
+        if hparams is None and searchspace is not None:
             params_dict = searchspace.get_random_parameter_values(1)[0]
-        else:
-            raise Exception("Run optimization first, to set a searchspace.")
+        elif hparams is None and searchspace is None:
+            raise Exception(
+                "Set hparams values to a fixed value or run optimization first to set a searchspace and run distributed training with a random hyperparameter configuration."
+            )
+        elif hparams is not None:
+            params_dict = hparams
+        if dataset_generator is not None:
+            params_dict["dataset_function"] = dataset_generator
+        if model_generator is not None:
+            params_dict["model_function"] = model_generator
 
         _start_run()
 
@@ -144,14 +163,14 @@ def mirrored(
 
 def lagom_v1(
     map_fun,
-    name="no-name",
-    experiment_type="optimization",
-    searchspace=None,
-    optimizer=None,
+    name=name,
+    experiment_type=experiment_type,
+    searchspace=searchspace,
+    optimizer=optimizer,
     direction="max",
     num_trials=1,
-    ablation_study=None,
-    ablator=None,
+    ablation_study=ablation_study,
+    ablator=ablator,
     optimization_key="metric",
     hb_interval=1,
     es_policy="median",

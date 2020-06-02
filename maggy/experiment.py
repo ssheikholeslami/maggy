@@ -31,14 +31,46 @@ from maggy.core import oblivious
 lagom = None
 
 
-def set_context(context, config):
+def set_dataset_generator(dataset):
+    oblivious.dataset_generator = dataset
+
+
+def set_model_generator(model):
+    oblivious.model_generator = model
+
+
+def set_name(name):
+    oblivious.name = name
+
+
+def reset():
+    oblivious.dataset_generator = None
+    oblivious.model_generator = None
+    oblivious.name = "no-name"
+    oblivious.searchspace = None
+    oblivious.ablation_study = None
+    oblivious.optimizer = None
+    oblivious.ablator = None
+    oblivious.hparams = None
+    oblivious.strategy = None
+
+
+def set_context(context, controller, config=None, hparams=None):
     global lagom
     if context.lower() == "optimization":
         oblivious.searchspace = config
+        oblivious.optimizer = controller
+        oblivious.experiment_type = "optimization"
         lagom = oblivious.lagom_v1
     elif context.lower() == "ablation":
+        oblivious.ablation_study = config
+        oblivious.ablator = controller
+        oblivious.hparams = hparams
         lagom = oblivious.lagom_v1
+        oblivious.experiment_type = "ablation"
     elif context.lower() == "dist_training":
+        oblivious.hparams = hparams
+        oblivious.strategy = controller
         lagom = oblivious.mirrored
     else:
         raise Exception(

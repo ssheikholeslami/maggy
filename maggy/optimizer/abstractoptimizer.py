@@ -24,6 +24,8 @@ class AbstractOptimizer(ABC):
         self.trial_store = None
         self.final_store = None
         self.direction = None
+        self.dataset_generator = None
+        self.model_generator = None
 
     @abstractmethod
     def initialize(self):

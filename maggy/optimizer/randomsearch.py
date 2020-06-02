@@ -38,6 +38,10 @@ class RandomSearch(AbstractOptimizer):
             self.num_trials
         )
         for parameters_dict in list_of_random_trials:
+            if self.dataset_generator is not None:
+                parameters_dict["dataset_function"] = self.dataset_generator
+            if self.model_generator is not None:
+                parameters_dict["model_function"] = self.model_generator
             self.trial_buffer.append(Trial(parameters_dict, trial_type="optimization"))
 
     def get_suggestion(self, trial=None):
