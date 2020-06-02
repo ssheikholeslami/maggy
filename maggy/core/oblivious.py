@@ -163,14 +163,14 @@ def mirrored(map_fun, name=name, local_logdir=False, description=None, evaluator
 
 def lagom_v1(
     map_fun,
-    name=name,
-    experiment_type=experiment_type,
-    searchspace=searchspace,
-    optimizer=optimizer,
+    # name=name,
+    # experiment_type=experiment_type,
+    # searchspace=searchspace,
+    # optimizer=optimizer,
     direction="max",
     num_trials=1,
-    ablation_study=ablation_study,
-    ablator=ablator,
+    # ablation_study=ablation_study,
+    # ablator=ablator,
     optimization_key="metric",
     hb_interval=1,
     es_policy="median",
@@ -243,6 +243,14 @@ def lagom_v1(
         global app_id
         global experiment_json
         global run_id
+        global name
+        global experiment_type
+        global searchspace
+        global optimizer
+        global ablator
+        global ablation_study
+        global dataset_generator
+        global model_generator
         app_id = str(sc.applicationId)
 
         app_id, run_id = util._validate_ml_id(app_id, run_id)
@@ -286,6 +294,8 @@ def lagom_v1(
             )
 
             exp_function = exp_driver.optimizer.name()
+            exp_driver.optimizer.dataset_generator = dataset_generator
+            exp_driver.optimizer.model_generator = model_generator
 
         elif experiment_type == "ablation":
             exp_driver = experimentdriver.ExperimentDriver(

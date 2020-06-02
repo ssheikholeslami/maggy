@@ -150,6 +150,10 @@ class Asha(AbstractOptimizer):
         params = self.searchspace.get_random_parameter_values(1)[0]
         # set resource to minimum
         params["resource"] = self.resource_min
+        if self.dataset_generator is not None:
+            params["dataset_function"] = self.dataset_generator
+        if self.model_generator is not None:
+            params["model_function"] = self.model_generator
         to_return = Trial(params)
         # add to bottom rung
         self.rungs[0].append(to_return)
