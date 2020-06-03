@@ -17,7 +17,6 @@
 import json
 import threading
 import hashlib
-import copy
 
 from maggy import util
 
@@ -132,7 +131,7 @@ class Trial(object):
     def to_dict(self):
         obj_dict = {"__class__": self.__class__.__name__}
 
-        temp_dict = copy.deepcopy(self.__dict__)
+        temp_dict = self.__dict__.copy()
         temp_dict.pop("lock")
         temp_dict.pop("start")
         temp_dict["params"].pop("model_function")
