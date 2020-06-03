@@ -130,6 +130,8 @@ def _prepare_func(
                     )
 
                 else:
+                    parameters.pop("model_function")
+                    parameters.pop("dataset_function")
                     hopshdfs.dump(
                         json.dumps(parameters, default=util.json_default_numpy),
                         tb_logdir + "/.hparams.json",
