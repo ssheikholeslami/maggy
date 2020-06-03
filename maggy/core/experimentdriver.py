@@ -24,6 +24,7 @@ import json
 import os
 import secrets
 import time
+import copy
 from datetime import datetime
 
 from hops import constants as hopsconstants
@@ -614,10 +615,12 @@ class ExperimentDriver(object):
         """
 
         metric = trial.final_metric
-        param_string = trial.params
+        param_string = copy.deepcopy(trial.params)
         trial_id = trial.trial_id
 
         if self.experiment_type == "optimization":
+            param_string.pop("dataset_function", None)
+            param_string.pop("model_function", None)
             # First finalized trial
             if self.result.get("best_id", None) is None:
                 self.result = {
