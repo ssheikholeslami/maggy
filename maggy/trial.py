@@ -51,7 +51,12 @@ class Trial(object):
         self.trial_type = trial_type
         # XXX temp fix, have to come up with abstractions
         if self.trial_type == "optimization":
-            self.trial_id = Trial._generate_id(params)
+            serializable_params = {
+                i: params[i]
+                for i in params
+                if i not in ["dataset_function", "model_function"]
+            }
+            self.trial_id = Trial._generate_id(serializable_params)
         elif self.trial_type == "ablation":
             serializable_params = {
                 "ablated_feature": params.get("ablated_feature", None),
