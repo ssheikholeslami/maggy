@@ -132,7 +132,7 @@ class LOCO(AbstractAblator):
         def model_generator(*args):
             import tensorflow as tf
 
-            base_model = base_model_generator()
+            base_model = base_model_generator(**self.hparams)
 
             list_of_layers = [
                 base_layer for base_layer in base_model.get_config()["layers"]
