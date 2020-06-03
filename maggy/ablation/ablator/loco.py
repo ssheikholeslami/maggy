@@ -129,7 +129,7 @@ class LOCO(AbstractAblator):
         if layer_identifier is None:
             return base_model_generator
 
-        def model_generator(*args):
+        def model_generator(kernel, pool, dropout):
             import tensorflow as tf
 
             base_model = base_model_generator(kernel, pool, dropout)  # noqa: F821
