@@ -252,6 +252,9 @@ class LOCO(AbstractAblator):
 
         trial_dict = {}
 
+        if self.hparams is not None:
+            trial_dict = {**trial_dict, **self.hparams}
+
         # 1 - determine the dataset generation logic
         if ablated_feature is None:
             trial_dict["dataset_function"] = self.base_dataset_generator

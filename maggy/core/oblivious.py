@@ -251,6 +251,7 @@ def lagom_v1(
         global ablation_study
         global dataset_generator
         global model_generator
+        global hparams
         app_id = str(sc.applicationId)
 
         app_id, run_id = util._validate_ml_id(app_id, run_id)
@@ -315,6 +316,7 @@ def lagom_v1(
                 num_executors = exp_driver.num_executors
 
             exp_function = exp_driver.ablator.name()
+            exp_driver.ablator.hparams = hparams
         else:
             running = False
             raise RuntimeError(

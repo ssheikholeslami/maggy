@@ -22,6 +22,7 @@ class AbstractAblator(ABC):
         self.ablation_study = ablation_study
         self.final_store = final_store
         self.trial_buffer = []
+        self.hparams = None
 
     @abstractmethod
     def get_number_of_trials(self):
