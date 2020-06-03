@@ -130,10 +130,15 @@ def _prepare_func(
                     )
 
                 else:
-                    parameters.pop("model_function")
-                    parameters.pop("dataset_function")
+                    serializable_params = {
+                        i: parameters[i]
+                        for i in parameters
+                        if i not in ["dataset_function", "model_function"]
+                    }
                     hopshdfs.dump(
-                        json.dumps(parameters, default=util.json_default_numpy),
+                        json.dumps(
+                            serializable_params, default=util.json_default_numpy
+                        ),
                         tb_logdir + "/.hparams.json",
                     )
 
