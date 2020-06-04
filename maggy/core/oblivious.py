@@ -42,7 +42,14 @@ name = "no-name"
 hparams = {}
 
 
-def mirrored(map_fun, name=name, local_logdir=False, description=None, evaluator=False):
+def mirrored(
+    map_fun,
+    name=name,
+    local_logdir=False,
+    description=None,
+    evaluator=False,
+    metric_key=None,
+):
     """
     *Distributed Training*
 
@@ -139,9 +146,11 @@ def mirrored(map_fun, name=name, local_logdir=False, description=None, evaluator
         )
         duration = experiment_utils._seconds_to_milliseconds(time.time() - start)
 
+        metric = experiment_utils._get_metric(return_dict, metric_key)
+
         experiment_utils._finalize_experiment(
             experiment_json,
-            None,
+            metric,
             app_id,
             run_id,
             "FINISHED",
