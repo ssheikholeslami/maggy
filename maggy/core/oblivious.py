@@ -44,7 +44,7 @@ hparams = {}
 
 def mirrored(
     map_fun,
-    name=name,
+    # name=name,
     local_logdir=False,
     description=None,
     evaluator=False,
@@ -97,6 +97,7 @@ def mirrored(
         global app_id
         global experiment_json
         global run_id
+        global name
         app_id = str(sc.applicationId)
 
         global searchspace
