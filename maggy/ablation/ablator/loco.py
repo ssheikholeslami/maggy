@@ -53,78 +53,12 @@ class LOCO(AbstractAblator):
 
         if dataset_type == "tfrecord":
 
-<<<<<<< HEAD
             def dataset_generator(num_epochs, batch_size):
                 from maggy.ablation.utils import tensorflowdatasets
                 return tensorflowdatasets.ablate_feature_and_create_tfrecord_dataset_from_featurestore(ablated_feature=ablated_feature, 
                 training_dataset_name=training_dataset_name, training_dataset_version=training_dataset_version,
                 label_name=label_name, num_epochs=num_epochs, batch_size=batch_size)
             return dataset_generator
-=======
-                    dataset_dir = featurestore.get_training_dataset_path(
-                        training_dataset_name, training_dataset_version
-                    )
-                    input_files = tf.gfile.Glob(dataset_dir + "/part-r-*")
-                    dataset = tf.data.TFRecordDataset(input_files)
-                    tf_record_schema = featurestore.get_training_dataset_tf_record_schema(
-                        training_dataset_name
-                    )
-                    meta = featurestore.get_featurestore_metadata()
-                    training_features = [
-                        feature.name
-                        for feature in meta.training_datasets[
-                            training_dataset_name + "_" + str(training_dataset_version)
-                        ].features
-                    ]
-
-                    if ablated_feature is not None:
-                        training_features.remove(ablated_feature)
-
-                    training_features.remove(label_name)
-
-                    def decode(example_proto):
-                        example = tf.parse_single_example(
-                            example_proto, tf_record_schema
-                        )
-                        # prepare the features
-                        x = []
-                        for feature_name in training_features:
-                            # temporary fix for the case of tf.int types
-                            if tf_record_schema[feature_name].dtype.is_integer:
-                                x.append(tf.cast(example[feature_name], tf.float32))
-                            else:
-                                x.append(example[feature_name])
-
-                        # prepare the labels
-                        if tf_record_schema[label_name].dtype.is_integer:
-                            y = [tf.cast(example[label_name], tf.float32)]
-                        else:
-                            y = [example[label_name]]
-
-                        return x, y
-
-                    dataset = (
-                        dataset.map(decode)
-                        .shuffle(shuffle_buffer_size)
-                        .batch(batch_size)
-                        .repeat(num_epochs)
-                    )
-                    return dataset
-
-                return create_tf_dataset
-            else:
-                raise NotSupportedError(
-                    "dataset type",
-                    dataset_type,
-                    "Use 'tfrecord' or write your own custom dataset generator.",
-                )
-
-    def get_model_generator(self, layer_identifier=None, custom_model_generator=None, type=None,
-    starting_layer=None, ending_layer=None): # TODO rewrite with kwargs?
-        
-        if type=='module':
-            return ablate_module(starting_layer, ending_layer)
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
 
         else:
             raise NotSupportedError(
@@ -160,70 +94,6 @@ class LOCO(AbstractAblator):
                 return functionalmodel.model_generator_for_module_ablation(starting_layer, ending_layer, base_model_generator)
             return model_generator
 
-<<<<<<< HEAD
-=======
-        return model_generator
-    
-    def ablate_module(starting_layer, ending_layer):
-        import tensorflow as tf
-        base_model = self.ablation_study.model.base_model_generator()
-        config_dict = base_model.get_config()
-        base_model_dict = json.loads(base_model.to_json())
-
-        layers_mapping_dict = get_dict_of_inbound_layers_mapping(config_dict)
-        all_layers = get_list_of_layer_names(config_dict)
-        # example of an ending_layer: the concat layer that is at the end of the inception module that we want to remove
-        # example of starting_layer: the concat layer at the same level and before the ending_layer
-
-        # passing the state as the argument (layers_for_removal), rather than using a global variable
-        removal_list = get_layers_for_removal(starting_layer, ending_layer, layers_mapping_dict, [])
-        removal_indices = sorted([all_layers.index(layer_name) for layer_name in removal_list], reverse=True)
-
-        # first change the future references then remove the layers, since the indices
-        # will be changed after removal of each layer, and all_layers.index() would become invalid
-        layers_to_be_modified = []
-        for layer, its_inbound_layers in layers_mapping_dict.items():    
-            if ending_layer in its_inbound_layers:
-                # print(layer)
-                inbound_list = base_model_dict['config']['layers'][all_layers.index(layer)]['inbound_nodes'][0][0]
-                new_inbound_list = [starting_layer if x==ending_layer else x for x in inbound_list]
-                base_model_dict['config']['layers'][all_layers.index(layer)]['inbound_nodes'][0][0] = new_inbound_list
-        
-        # now remove the layers
-        for index in removal_indices:
-            base_model_dict['config']['layers'].pop(index)
-        
-        new_model = tf.keras.models.model_from_json(json.dumps(base_model_dict))
-        return new_model
-
-    def get_list_of_layer_names(config_dict):
-        list_of_names = []
-        for layer in config_dict['layers']:
-            list_of_names.append(layer['name'])
-        return list_of_names
-
-    def get_dict_of_inbound_layers_mapping(config_dict):
-        dict_of_inbound_layers = {}
-        for layer in config_dict['layers']:
-            list_of_inbound_layers = []
-            name = layer['name']
-            if len(layer['inbound_nodes']) > 0: # because some layers, such as input layers, do not have any inbound_nodes
-                for inbound_layer in layer['inbound_nodes'][0]:
-                    list_of_inbound_layers.append(inbound_layer[0])
-            dict_of_inbound_layers[name] = list_of_inbound_layers
-        return dict_of_inbound_layers
-
-    def get_layers_for_removal(starting_layer, ending_layer, layers_mapping_dict, layers_for_removal):
-        if ending_layer == starting_layer:
-            return
-        for inbound_layer in layers_mapping_dict[ending_layer]:
-            get_layers_for_removal(starting_layer, inbound_layer, layers_mapping_dict, layers_for_removal)
-        
-        layers_mapping_dict.pop(ending_layer) # not sure how this will change the state
-        layers_for_removal.append(ending_layer)
-        return layers_for_removal
-
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
 
     def initialize(self):
         """
@@ -284,16 +154,11 @@ class LOCO(AbstractAblator):
             )
         
         # 5 - generate module ablation trials
-<<<<<<< HEAD
         for module in self.ablation_study.model.modules:
-=======
-        for module in self.ablation_study.modules:
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
             starting_layer, ending_layer = module
             self.trial_buffer.append(
                 Trial(
                     self.create_trial_dict(
-<<<<<<< HEAD
                         starting_layer=starting_layer,
                         ending_layer=ending_layer,
                         ablation_type='module',
@@ -301,16 +166,6 @@ class LOCO(AbstractAblator):
                     trial_type='ablation'
                 )
             )        
-=======
-                        type='module',
-                        starting_layer=starting_layer,
-                        ending_layer=ending_layer
-                    ),
-                    trial_type='ablation'
-                )
-            )
-        
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
 
     def get_trial(self, trial=None):
         if self.trial_buffer:
@@ -322,23 +177,14 @@ class LOCO(AbstractAblator):
         return
 
     def create_trial_dict(
-<<<<<<< HEAD
         self, ablation_type=None, ablated_feature=None, layer_identifier=None, custom_model_generator=None, 
         starting_layer=None, ending_layer=None,
-=======
-        self, type=None, ablated_feature=None, layer_identifier=None, custom_model_generator=None
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
     ):
         """
         Creates a trial dictionary that can be used for creating a Trial instance.
 
-<<<<<<< HEAD
         :param ablation_type: a string representing type of ablation trial 
         ('feature', 'layer', 'module', 'custom_model', or 'base')
-=======
-        :param type: a string representing type of ablation trial 
-        ('feature', 'layer', 'module', 'custom_model', or None (for backwards compatibility))
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
         :param ablated_feature: a string representing the name of a feature, or None
         :param layer_identifier: A string representing the name of a single layer, or a set representing a layer group.
         If the set has only one element, it is regarded as a prefix, so all layers with that prefix in their names
@@ -398,17 +244,8 @@ class LOCO(AbstractAblator):
             trial_dict["ablated_layer"] = "Custom model: " + custom_model_generator[1]
         
         # 2.4 - module ablation based on base model generator
-<<<<<<< HEAD
         elif ablation_type=='module':
             trial_dict['model_function'] = self.get_model_generator(starting_layer=starting_layer, ending_layer=ending_layer, ablation_type='module')
             trial_dict['ablated_layer'] = "All layers between {0} and {1}".format(starting_layer, ending_layer)
-=======
-        elif type=='module':
-            trial_dict['model_function'] = self.get_model_generator(type='module', 
-            starting_layer=starting_layer, ending_layer=ending_layer)
-            trial_dict['ablated_layer'] = "All layers between {0} and {1}"
-            .format(starting_layer, ending_layer)
-
->>>>>>> 3010a29e2eb7dcd6cff96560886b5d6548abdc97
 
         return trial_dict
