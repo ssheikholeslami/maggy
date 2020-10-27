@@ -32,8 +32,8 @@ class AblationStudy(object):
     (for an example, look at `ablator.LOCO.get_dataset_generator()`).
     If you want to provide your own dataset generator function,
     define it before creating the `AblationStudy` instance and pass it to
-    the initializer or use 'set_dataset_generator()'. In the example below 
-    we assume the user has created a function called `create_tf_dataset()` 
+    the initializer or use 'set_dataset_generator()'. In the example below
+    we assume the user has created a function called `create_tf_dataset()`
     that returns a `TFRecordDataset`:
 
     >>> ablation_study = AblationStudy('titanic_train_dataset',
@@ -147,7 +147,7 @@ class AblationStudy(object):
         }
 
         return ablation_dict
-    
+
     def set_dataset_generator(self, dataset_generator):
         """
         Sets a user-defined function as the dataset generator.
@@ -234,6 +234,11 @@ class Model(object):
         # One (extra) trial will be generated per each item in the list.
         self.custom_model_generators = []
 
+        # the list holding the identifiers of modules, in form of tuples of (starting layer, ending_layer)
+        # examples of modules can be found in the Inception network, where each
+        # module is usually wrapped between to concatenation (mixed) layers.
+        self.modules = []
+
     def set_base_model_generator(self, base_model_generator):
         self.base_model_generator = base_model_generator
 
@@ -248,6 +253,11 @@ class Model(object):
         :type model_identifier: str
         """
         self.custom_model_generators.append((custom_model_generator, model_identifier))
+
+    def add_module(self, starting_layer, ending_layer):
+        """
+        """
+        self.modules.append((starting_layer, ending_layer))
 
 
 class Layers(object):
